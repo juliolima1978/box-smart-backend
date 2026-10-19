@@ -16,3 +16,4 @@ python-dotenv
 google-genai
 apscheduler
 firebase-admin
+pandas
