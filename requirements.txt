@@ -15,3 +15,4 @@ pydantic
 python-dotenv
 google-genai
 apscheduler
+firebase-admin
