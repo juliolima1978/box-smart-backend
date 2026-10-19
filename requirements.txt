@@ -17,3 +17,4 @@ google-genai
 apscheduler
 firebase-admin
 pandas
+email-validator
