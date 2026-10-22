@@ -1,6 +1,8 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
+from pydantic import Field
+from datetime import date
 
 
 
@@ -187,8 +189,17 @@ class ClienteBase(BaseModel):
     perfil: Optional[str] = "cliente"  # 'cliente', 'admin', 'separador', 'entregador'
     ativo: Optional[bool] = True
 
-class ClienteCreate(ClienteBase):
-    senha: str
+class ClienteCreate(BaseModel):
+    nome: str = Field(..., min_length=3, description="Nome completo do cliente")
+    email: EmailStr
+    senha: str = Field(..., min_length=6, description="Senha de acesso")
+    telefone: str = Field(..., description="Telefone / WhatsApp principal")
+    cpf: Optional[str] = Field(None, description="CPF para nota fiscal")
+    cep: Optional[str] = Field(None, description="CEP de entrega principal")
+    rua: Optional[str] = Field(None, description="Logradouro")
+    numero: Optional[str] = Field(None, description="Número do endereço")
+    bairro: Optional[str] = Field(None, description="Bairro")
+    data_nascimento: Optional[date] = Field(None, description="Para campanhas do clube")
 
 class ClienteResponse(ClienteBase):
     id: int

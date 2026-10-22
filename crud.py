@@ -56,11 +56,21 @@ def get_clientes(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Cliente).offset(skip).limit(limit).all()
 
 def create_cliente(db: Session, cliente: schemas.ClienteCreate):
+    dados = cliente.model_dump() if hasattr(cliente, 'model_dump') else cliente.dict()
+    
+    # Monta o endereço de forma segura em Python puro
+    rua = dados.get('rua')
+    numero = dados.get('numero', '')
+    bairro = dados.get('bairro', '')
+    endereco_completo = f"{rua}, {numero} - {bairro}" if rua else None
+
     db_cliente = models.Cliente(
-        nome=cliente.nome,
-        email=cliente.email,
-        senha_hash=cliente.senha, 
-        telefone=cliente.telefone,
+        nome=dados.get('nome'),
+        email=dados.get('email'),
+        senha_hash=dados.get('senha'),  # Lembre-se de aplicar hash se utilizar passlib
+        telefone=dados.get('telefone'),
+        cpf=dados.get('cpf'),
+        endereco=endereco_completo,
         is_admin=False
     )
     db.add(db_cliente)
@@ -75,7 +85,6 @@ def create_cliente(db: Session, cliente: schemas.ClienteCreate):
     db.commit()
     db.refresh(db_cliente)
     return db_cliente
-
 
 # --- Pedidos ---
 def criar_pedido(db: Session, pedido: schemas.PedidoCreate):
