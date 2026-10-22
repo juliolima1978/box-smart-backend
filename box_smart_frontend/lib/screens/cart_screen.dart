@@ -9,6 +9,7 @@ import 'checkout_sucesso_screen.dart';
 import 'endereco_screen.dart';
 import '../main.dart';
 import 'produto_detalhe_screen.dart';
+import 'checkout_flow_screen.dart'; // 👈 Import do novo fluxo em etapas
 
 class CpfInputFormatter extends TextInputFormatter {
   @override
@@ -68,7 +69,7 @@ class _CartScreenState extends State<CartScreen> {
   bool _ehMembroClube = false;
   bool _bannerDispensado = false; // Controla o fechamento do banner na sessão
 
-  final String baseUrl = "http://192.168.15.175:8000";
+  final String baseUrl = "https://box-smart-backend.onrender.com"; // 👈 URL oficial atualizada na nuvem (Render)
 
   String _enderecoEntrega = 'Endereço não selecionado';
   bool _precisaTroco = false;
@@ -994,6 +995,7 @@ class _CartScreenState extends State<CartScreen> {
                         builder: (context) => ProdutoDetalheScreen(
                           clienteId: _clienteIdEfetivo,
                           token: _tokenEfetivo,
+                         //baseUrl: baseUrl,
                           favoritosIds: _favoritosEfetivos,
                           produto: produto,
                           carrinho: widget.carrinho,
@@ -1017,335 +1019,35 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildSecaoEndereco() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.location_on, color: Colors.redAccent, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Entregar em',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              TextButton(
-                onPressed: () async {
-                  if (!_exigirAutenticacao(context)) return;
-
-                  final enderecoSelecionado = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EnderecoScreen(
-                        clienteId: _clienteIdEfetivo,
-                        token: _tokenEfetivo,
-                        baseUrl: baseUrl,
-                      ),
-                    ),
-                  );
-
-                  if (enderecoSelecionado != null && enderecoSelecionado is Map) {
-                    setState(() {
-                      _enderecoSelecionadoId = enderecoSelecionado['id'];
-
-                      final String rua = enderecoSelecionado['rua'] ?? enderecoSelecionado['logradouro'] ?? '';
-                      final String numero = enderecoSelecionado['numero']?.toString() ?? '';
-                      final String bairro = enderecoSelecionado['bairro'] ?? '';
-
-                      if (rua.isNotEmpty) {
-                        _enderecoEntrega = '$rua, $numero${bairro.isNotEmpty ? " - $bairro" : ""}';
-                      } else {
-                        _enderecoEntrega = 'Endereço selecionado';
-                      }
-                    });
-
-                    _calcularFreteBackend();
-                  }
-                },
-                child: Text(
-                  _enderecoEntrega == 'Endereço não selecionado'
-                      ? 'Selecionar'
-                      : 'Trocar',
-                  style: const TextStyle(
-                    color: Colors.blue,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _enderecoEntrega,
-            style: TextStyle(
-              fontSize: 14,
-              color: _enderecoEntrega == 'Endereço não selecionado'
-                  ? Colors.red.shade700
-                  : Colors.black87,
-              fontWeight: _enderecoEntrega == 'Endereço não selecionado'
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSecaoPagamento() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.payment, color: Colors.green, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Forma de Pagamento',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          RadioListTile<String>(
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              'Pix',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text('Aprovação imediata'),
-            value: 'Pix',
-            groupValue: _formaPagamento,
-            activeColor: Colors.green,
-            onChanged: (String? value) {
-              setState(() {
-                _formaPagamento = value!;
-                _precisaTroco = false;
-              });
-            },
-          ),
-
-          RadioListTile<String>(
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              'Cartão na Entrega',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text('Crédito ou Débito na maquininha'),
-            value: 'Cartao',
-            groupValue: _formaPagamento,
-            activeColor: Colors.blue,
-            onChanged: (String? value) {
-              setState(() {
-                _formaPagamento = value!;
-                _precisaTroco = false;
-              });
-            },
-          ),
-
-          RadioListTile<String>(
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              'Dinheiro na Entrega',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            value: 'Dinheiro',
-            groupValue: _formaPagamento,
-            activeColor: Colors.orange,
-            onChanged: (String? value) {
-              setState(() {
-                _formaPagamento = value!;
-              });
-            },
-          ),
-
-          if (_formaPagamento == 'Dinheiro')
-            Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, top: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _precisaTroco,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            _precisaTroco = value ?? false;
-                          });
-                        },
-                      ),
-                      const Text('Precisa de troco?'),
-                    ],
-                  ),
-                  if (_precisaTroco)
-                    TextField(
-                      controller: _trocoController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Troco para quanto? (Ex: 200,00)',
-                        prefixText: 'R\$ ',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _finalizarPedidoBackend() async {
+  // 🚀 Botão Principal que agora abre o CheckoutFlowScreen em etapas
+  void _iniciarCheckoutFlow() {
     if (!_exigirAutenticacao(context)) return;
 
-    if (_itensDetalhados.isEmpty) return;
-
-    if (_tipoEntrega == 'entrega' &&
-        (_enderecoEntrega.isEmpty ||
-            _enderecoEntrega == 'Endereço não selecionado')) {
+    if (_itensDetalhados.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, selecione um endereço de entrega.'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Seu carrinho está vazio!')),
       );
       return;
     }
 
-    setState(() => _processandoPedido = true);
-
-    String formaPagamentoFinal = _formaPagamento;
-    if (_formaPagamento == 'Dinheiro') {
-      formaPagamentoFinal = 'Dinheiro na Entrega';
-    } else if (_formaPagamento == 'Cartao') {
-      formaPagamentoFinal = 'Cartão na Entrega';
-    } else if (_formaPagamento == 'Pix') {
-      formaPagamentoFinal = 'Pix';
-    }
-
-    double valorTrocoPara = 0.0;
-    if (_formaPagamento == 'Dinheiro' && _precisaTroco) {
-      valorTrocoPara =
-          double.tryParse(
-            _trocoController.text
-                .replaceAll('.', '')
-                .replaceAll(',', '.')
-                .trim(),
-          ) ??
-              0.0;
-    }
-
-    String enderecoFinal = _tipoEntrega == 'entrega'
-        ? _enderecoEntrega
-        : 'Retirada no Caixa';
-
-    final payloadItens = _itensDetalhados.map((item) {
-      return {
-        "produto_id": item['id'],
-        "quantidade": item['eVariavelPorPeso']
-            ? (item['quantidade'] / 1000.0)
-            : item['quantidade'],
-      };
-    }).toList();
-
-    final payload = {
-      "cliente_id": _clienteIdEfetivo,
-      "endereco_entrega": enderecoFinal,
-      "forma_pagamento": formaPagamentoFinal,
-      "troco_para": valorTrocoPara,
-      "esta_pago": false,
-      "itens": payloadItens,
-    };
-
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/pedidos/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_tokenEfetivo',
-        },
-        body: json.encode(payload),
-      );
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        final respostaData = json.decode(response.body);
-        final int pedidoId =
-            respostaData['id'] ?? respostaData['pedido_id'] ?? 1001;
-
-        widget.onLimparCarrinho();
-
-        if (!mounted) return;
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CheckoutSucessoScreen(
-              baseUrl: baseUrl,
-              clienteId: _clienteIdEfetivo,
-              clienteNome: widget.clienteNome,
-              token: _tokenEfetivo,
-              pedidoId: pedidoId,
-            ),
-          ),
-        );
-      } else {
-        final erro = json.decode(response.body);
-        String mensagemErro = 'Erro ao processar pedido no servidor.';
-        if (erro['detail'] != null) {
-          if (erro['detail'] is String) {
-            mensagemErro = erro['detail'];
-          } else if (erro['detail'] is List) {
-            mensagemErro = (erro['detail'] as List)
-                .map((e) => "${e['loc'] != null ? e['loc'].last : ''}: ${e['msg']}")
-                .join(', ');
-          }
-        }
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(mensagemErro),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro de conexão ao enviar pedido: $e'),
-          backgroundColor: Colors.red.shade700,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CheckoutFlowScreen(
+          clienteId: _clienteIdEfetivo,
+          token: _tokenEfetivo,
+          baseUrl: baseUrl,
+          carrinho: widget.carrinho,
+          produtosListaGlobal: widget.produtos,
+          favoritosIds: _favoritosEfetivos,
         ),
-      );
-    } finally {
-      if (mounted) setState(() => _processandoPedido = false);
-    }
+      ),
+    ).then((_) {
+      if (mounted) {
+        setState(() {});
+        _calcularFreteBackend();
+      }
+    });
   }
 
   @override
@@ -1724,121 +1426,6 @@ class _CartScreenState extends State<CartScreen> {
                       },
                     ),
                     _buildCarrosselRecomendacoes(),
-                    const Text(
-                      'Forma de Recebimento',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() => _tipoEntrega = 'retirada');
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: _tipoEntrega == 'retirada'
-                                    ? Colors.green.shade50
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: _tipoEntrega == 'retirada'
-                                      ? AppColors.primaria
-                                      : Colors.grey.shade300,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: const Column(
-                                children: [
-                                  Icon(
-                                    Icons.storefront_rounded,
-                                    color: AppColors.primaria,
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Retirar no Caixa',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Grátis',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() => _tipoEntrega = 'entrega');
-                              _calcularFreteBackend();
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: _tipoEntrega == 'entrega'
-                                    ? Colors.green.shade50
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: _tipoEntrega == 'entrega'
-                                      ? AppColors.primaria
-                                      : Colors.grey.shade300,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  const Icon(
-                                    Icons.delivery_dining_rounded,
-                                    color: AppColors.primaria,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Entrega Expressa',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    _valorFreteCalculado == 0.0
-                                        ? 'Grátis'
-                                        : 'R\$ ${_valorFreteCalculado.toStringAsFixed(2).replaceAll('.', ',')}',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: _valorFreteCalculado == 0.0
-                                          ? Colors.green.shade800
-                                          : Colors.grey,
-                                      fontWeight:
-                                      _valorFreteCalculado == 0.0
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (_tipoEntrega == 'entrega') _buildSecaoEndereco(),
-                    _buildSecaoPagamento(),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1887,39 +1474,6 @@ class _CartScreenState extends State<CartScreen> {
                               ],
                             ),
                           ],
-                          if (_tipoEntrega == 'entrega') ...[
-                            const SizedBox(height: 6),
-                            Row(
-                              mainAxisAlignment:
-                              MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Taxa de Entrega:',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                                _carregandoFrete
-                                    ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.primaria,
-                                  ),
-                                )
-                                    : Text(
-                                  _taxaEntrega == 0.0
-                                      ? 'GRÁTIS'
-                                      : 'R\$ ${_taxaEntrega.toStringAsFixed(2).replaceAll('.', ',')}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: _taxaEntrega == 0.0
-                                        ? Colors.green.shade800
-                                        : Colors.black87,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
                           const Divider(height: 20),
                           Row(
                             mainAxisAlignment:
@@ -1933,7 +1487,7 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                               ),
                               Text(
-                                'R\$ ${_valorTotalFinal.toStringAsFixed(2).replaceAll('.', ',')}',
+                                'R\$ ${(_subtotalSemDesconto - _totalEconomiaClube).toStringAsFixed(2).replaceAll('.', ',')}',
                                 style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w900,
@@ -1950,6 +1504,7 @@ class _CartScreenState extends State<CartScreen> {
                 ),
               ),
             ),
+            // 🎯 Botão Inferior atualizado para chamar o fluxo de etapas
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1976,13 +1531,9 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                     onPressed: _processandoPedido
                         ? null
-                        : _finalizarPedidoBackend,
-                    child: _processandoPedido
-                        ? const CircularProgressIndicator(
-                      color: Colors.white,
-                    )
-                        : Text(
-                      'Confirmar Pedido • R\$ ${_valorTotalFinal.toStringAsFixed(2).replaceAll('.', ',')}',
+                        : _iniciarCheckoutFlow, // 👈 Chama o novo fluxo de checkout
+                    child: Text(
+                      'Finalizar Pedido • R\$ ${(_subtotalSemDesconto - _totalEconomiaClube).toStringAsFixed(2).replaceAll('.', ',')}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

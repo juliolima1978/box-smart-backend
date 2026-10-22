@@ -5,6 +5,7 @@ import '../main.dart'; // Importa AppColors
 class SearchScreen extends StatefulWidget {
   final int clienteId;
   final String token;
+ // final String baseUrl; // 👈 Adicionado baseUrl
   final Map<int, int> carrinho;
   final Set<int> favoritosIds;
   final List<dynamic> produtosListaGlobal;
@@ -13,6 +14,7 @@ class SearchScreen extends StatefulWidget {
     super.key,
     required this.clienteId,
     required this.token,
+   // required this.baseUrl, // 👈 Obrigatório no construtor
     required this.carrinho,
     required this.favoritosIds,
     required this.produtosListaGlobal,
@@ -129,7 +131,16 @@ class _SearchScreenState extends State<SearchScreen> {
         itemCount: resultados.length,
         itemBuilder: (context, index) {
           final prod = resultados[index];
-          final double preco = double.tryParse(prod['preco'].toString().replaceAll(',', '.')) ?? 0.0;
+
+          // 🌟 Tratamento inteligente de Preço Normal vs Preço Clube na Busca
+          final double precoNormal = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
+          final dynamic precoClubeRaw = prod['preco_clube'];
+          final bool temPrecoClube = precoClubeRaw != null;
+          final double precoClube = temPrecoClube
+              ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0)
+              : 0.0;
+
+          final double precoFinal = (temPrecoClube && precoClube > 0) ? precoClube : precoNormal;
 
           return Card(
             elevation: 0,
@@ -153,9 +164,46 @@ class _SearchScreenState extends State<SearchScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              subtitle: Text(
-                'R\$ ${preco.toStringAsFixed(2).replaceAll('.', ',')}',
-                style: TextStyle(fontSize: 12, color: AppColors.primaria, fontWeight: FontWeight.w800),
+              subtitle: Row(
+                children: [
+                  if (temPrecoClube && precoClube > 0) ...[
+                    Text(
+                      'R\$ ${precoNormal.toStringAsFixed(2).replaceAll('.', ',')}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(
+                    'R\$ ${precoFinal.toStringAsFixed(2).replaceAll('.', ',')}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: temPrecoClube && precoClube > 0 ? const Color(0xFFD97706) : AppColors.primaria,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (temPrecoClube && precoClube > 0) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'CLUBE',
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFD97706),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
               onTap: () {
@@ -165,6 +213,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     builder: (context) => ProdutoDetalheScreen(
                       clienteId: widget.clienteId,
                       token: widget.token,
+                      //baseUrl: widget.baseUrl, // 👈 Repassando a baseUrl
                       favoritosIds: widget.favoritosIds,
                       produto: prod,
                       carrinho: widget.carrinho,

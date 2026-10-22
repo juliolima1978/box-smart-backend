@@ -73,13 +73,15 @@ class _ProdutoCardState extends State<ProdutoCard> {
             prod['pesavel'];
     if (varPeso == true ||
         varPeso == 1 ||
-        varPeso.toString().toLowerCase() == 'true')
+        varPeso.toString().toLowerCase() == 'true') {
       return true;
+    }
 
     // 2. Unidade de medida
     if (['kg', 'quilo', 'quilos', 'g', 'gramas'].contains(un) ||
-        un.startsWith('kg'))
+        un.startsWith('kg')) {
       return true;
+    }
 
     // 3. Detecção por nome (Açougue, Hortifrúti, Frios)
     return nome.contains('patinho') ||
@@ -103,8 +105,9 @@ class _ProdutoCardState extends State<ProdutoCard> {
             prod['quantidade_estoque'] ??
             prod['saldo_estoque'];
 
-    if (rawEstoque == null)
+    if (rawEstoque == null) {
       return false; // Se o backend não informar estoque, assume disponível
+    }
 
     final double? estoqueNum = double.tryParse(
       rawEstoque.toString().replaceAll(',', '.'),
@@ -278,8 +281,14 @@ class _ProdutoCardState extends State<ProdutoCard> {
     final prod = _produtoCompleto;
     final bool pesavel = _eVariavelPorPeso;
     final bool semEstoque = _semEstoque;
-    final bool eMaisVendido =
-        prod['mais_vendido'] == true || prod['destaque'] == true;
+
+    // 🌟 Leitura robusta para aceitar booleano, inteiro (1/0) ou string ('true'/'1')
+    final dynamic rawMaisVendido = prod['mais_vendido'] ?? prod['is_mais_vendido'] ?? prod['maisVendido'];
+    final bool eMaisVendido = rawMaisVendido == true || rawMaisVendido == 1 || rawMaisVendido.toString().toLowerCase() == 'true' || rawMaisVendido.toString() == '1';
+
+    final dynamic rawDestaque = prod['destaque'] ?? prod['is_destaque'] ?? prod['destacado'];
+    final bool eDestaque = rawDestaque == true || rawDestaque == 1 || rawDestaque.toString().toLowerCase() == 'true' || rawDestaque.toString() == '1';
+
     final double precoNormal =
         double.tryParse(prod['preco'].toString().replaceAll(',', '.')) ?? 0.0;
     final dynamic precoClubeRaw = prod['preco_clube'];
@@ -288,6 +297,13 @@ class _ProdutoCardState extends State<ProdutoCard> {
         ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ??
         0.0)
         : 0.0;
+
+    // 🏷️ Cálculo do percentual de desconto
+    final double precoDescontoEfetivo = (temPrecoClube && precoClube > 0) ? precoClube : 0.0;
+    final bool temDesconto = precoDescontoEfetivo > 0 && precoDescontoEfetivo < precoNormal;
+    final int percentualDesconto = temDesconto
+        ? (((precoNormal - precoDescontoEfetivo) / precoNormal) * 100).round()
+        : 0;
 
     final bool eFavorito = widget.favoritosIds.contains(_produtoId);
 
@@ -359,6 +375,32 @@ class _ProdutoCardState extends State<ProdutoCard> {
                     ),
                   ),
 
+                // 🏷️ Selo de Percentual de Desconto (Ex: -15%)
+                if (temDesconto && !semEstoque)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '-$percentualDesconto%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Selo MAIS VENDIDO na lateral direita
                 if (eMaisVendido && !semEstoque)
                   Positioned(
                     top: 15,
@@ -399,6 +441,7 @@ class _ProdutoCardState extends State<ProdutoCard> {
                       ),
                     ),
                   ),
+
                 Positioned(
                   top: 4,
                   right: 4,
@@ -594,17 +637,16 @@ class _ProdutoCardState extends State<ProdutoCard> {
                         ),
                       ),
                     )
-                        : // ... dentro do ProdutoCard (_produtoCardState)
-                         Container(
+                        : Container(
                       height: 34,
-                      padding: const EdgeInsets.symmetric(horizontal: 4), // 👈 Adicionado padding leve para respiro
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       decoration: BoxDecoration(
                         color: Colors.green.shade50,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: AppColors.primaria),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween, // 👈 Alterado de spaceAround para spaceBetween
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           IconButton(
                             padding: EdgeInsets.zero,

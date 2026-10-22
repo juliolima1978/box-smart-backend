@@ -45,6 +45,9 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
   List<dynamic> _subcategorias = [];
   bool _isLoadingSubcategorias = true;
 
+
+
+
   // 🔝 CONTROLADORES DE ROLAGEM E BOTÃO VOLTAR AO TOPO
   final ScrollController _scrollController = ScrollController();
   bool _mostrarBotaoTopo = false;
@@ -52,6 +55,8 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
   // 🎛️ ESTADOS DOS FILTROS
   bool _apenasBoxPrime = false;
   bool _apenasPromocoes = false;
+  bool _apenasDestaques = false;       // 👈 NOVO
+  bool _apenasMaisVendidos = false;
   double _precoMinimoLimite = 0.0;
   double _precoMaximoLimite = 100.0;
   late RangeValues _faixaPreco;
@@ -60,6 +65,8 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
     int count = 0;
     if (_apenasBoxPrime) count++;
     if (_apenasPromocoes) count++;
+    if (_apenasDestaques) count++;       // 👈 NOVO
+    if (_apenasMaisVendidos) count++;
     if (_faixaPreco.start > _precoMinimoLimite || _faixaPreco.end < _precoMaximoLimite) count++;
     return count;
   }
@@ -172,6 +179,8 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
   void _abrirModalFiltros() {
     bool tempBoxPrime = _apenasBoxPrime;
     bool tempPromocoes = _apenasPromocoes;
+    bool tempDestaques = _apenasDestaques;          // 👈 NOVO
+    bool tempMaisVendidos = _apenasMaisVendidos;
     RangeValues tempFaixaPreco = _faixaPreco;
 
     showModalBottomSheet(
@@ -248,6 +257,35 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
                       setModalState(() => tempPromocoes = val);
                     },
                   ),
+// 3. Switch Destaques (NOVO)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.auto_awesome_rounded, color: Colors.purple),
+                    title: const Text(
+                      'Apenas Produtos em Destaque',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    value: tempDestaques,
+                    activeColor: Colors.purple,
+                    onChanged: (val) {
+                      setModalState(() => tempDestaques = val);
+                    },
+                  ),
+
+                  // 4. Switch Mais Vendidos (NOVO)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.local_fire_department_rounded, color: Colors.orange),
+                    title: const Text(
+                      'Apenas Mais Vendidos',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    value: tempMaisVendidos,
+                    activeColor: Colors.orange.shade800,
+                    onChanged: (val) {
+                      setModalState(() => tempMaisVendidos = val);
+                    },
+                  ),
 
                   const SizedBox(height: 12),
                   const Text(
@@ -297,6 +335,8 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
                             setModalState(() {
                               tempBoxPrime = false;
                               tempPromocoes = false;
+                              tempDestaques = false;       // 👈 NOVO
+                              tempMaisVendidos = false;    // 👈 NOVO
                               tempFaixaPreco = RangeValues(_precoMinimoLimite, _precoMaximoLimite);
                             });
                           },
@@ -315,6 +355,8 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
                             setState(() {
                               _apenasBoxPrime = tempBoxPrime;
                               _apenasPromocoes = tempPromocoes;
+                              _apenasDestaques = tempDestaques;       // 👈 NOVO
+                              _apenasMaisVendidos = tempMaisVendidos; // 👈 NOVO
                               _faixaPreco = tempFaixaPreco;
                             });
                             Navigator.pop(context);
@@ -372,6 +414,20 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
             prod['preco_promocional'] != null ||
             prod['preco_clube'] != null;
         if (!emPromo) return false;
+      }
+
+      // 👈 NOVO: Filtro de Destaques
+      if (_apenasDestaques) {
+        final dynamic rawDestaque = prod['destaque'] ?? prod['is_destaque'] ?? prod['destacado'];
+        final bool eDestaque = rawDestaque == true || rawDestaque == 1 || rawDestaque.toString().toLowerCase() == 'true' || rawDestaque.toString() == '1';
+        if (!eDestaque) return false;
+      }
+
+      // 👈 NOVO: Filtro de Mais Vendidos
+      if (_apenasMaisVendidos) {
+        final dynamic rawMaisVendido = prod['mais_vendido'] ?? prod['is_mais_vendido'] ?? prod['maisVendido'];
+        final bool eMaisVendido = rawMaisVendido == true || rawMaisVendido == 1 || rawMaisVendido.toString().toLowerCase() == 'true' || rawMaisVendido.toString() == '1';
+        if (!eMaisVendido) return false;
       }
 
       final double preco = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
@@ -1000,6 +1056,7 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
                               carrinho: widget.carrinho,
                               favoritosIds: widget.favoritosIds,
                               produtosListaGlobal: widget.produtosListaGlobal,
+                             // baseUrl: '',
                             ),
                           ),
                         ).then((_) {

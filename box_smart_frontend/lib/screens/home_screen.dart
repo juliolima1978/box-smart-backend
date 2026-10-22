@@ -865,6 +865,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               carrinho: _carrinho,
                               favoritosIds: _favoritosIds,
                               produtosListaGlobal: _produtosBackend,
+                              //baseUrl: '',
                             ),
                           ),
                         ).then((_) {

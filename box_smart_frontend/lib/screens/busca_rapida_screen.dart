@@ -767,6 +767,7 @@ class _BuscaRapidaScreenState extends State<BuscaRapidaScreen> {
                           carrinho: widget.carrinho,
                           favoritosIds: widget.favoritosIds,
                           produtosListaGlobal: widget.produtosListaGlobal,
+                          //baseUrl: '',
                         ),
                       ),
                     );
