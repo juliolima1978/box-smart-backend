@@ -489,7 +489,7 @@ class _CartScreenState extends State<CartScreen> {
         });
 
         // 💾 Salva o CPF e status de membro localmente para persistir entre compras
-        await SessionService.salvarClube(_cpfCliente!, _ehMembroClube);
+       // await SessionService.salvarClube(_cpfCliente!, _ehMembroClube, _ehMembroClube);
 
         _calcularFreteBackend();
 

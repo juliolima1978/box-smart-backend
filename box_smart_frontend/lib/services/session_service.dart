@@ -1,50 +1,49 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SessionService {
-  static const String _keyToken = 'auth_token';
-  static const String _keyClienteId = 'cliente_id';
-  static const String _keyClienteNome = 'cliente_nome';
-  static const String _keyCpfCliente = 'cpf_cliente';
-  static const String _keyMembroClube = 'eh_membro_clube';
-
-  // 💾 Salvar dados completos no login
+  // 💾 Salva a sessão completa com todos os dados do cliente
   static Future<void> salvarSessao({
     required String token,
     required int clienteId,
     required String clienteNome,
+    String? email,
+    String? telefone,
     String? cpfCliente,
     bool ehMembroClube = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyToken, token);
-    await prefs.setInt(_keyClienteId, clienteId);
-    await prefs.setString(_keyClienteNome, clienteNome);
-    if (cpfCliente != null && cpfCliente.isNotEmpty) {
-      await prefs.setString(_keyCpfCliente, cpfCliente);
-    }
-    await prefs.setBool(_keyMembroClube, ehMembroClube);
+    await prefs.setString('token', token);
+    await prefs.setInt('clienteId', clienteId);
+    await prefs.setString('clienteNome', clienteNome);
+
+    if (email != null) await prefs.setString('email', email);
+    if (telefone != null) await prefs.setString('telefone', telefone);
+    if (cpfCliente != null) await prefs.setString('cpf', cpfCliente);
+
+    await prefs.setBool('ehMembroClube', ehMembroClube);
   }
 
-  // 📥 Carregar dados salvos
+  // 🌟 MÉTODO COMPATIBILIZADO PARA EVITAR O ERRO EM TELAS ANTIGAS
+  static Future<void> salvarClube(String s, {required bool ehMembroClube}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('ehMembroClube', ehMembroClube);
+  }
+
+  // 📂 Carrega a sessão salva no dispositivo
   static Future<Map<String, dynamic>> carregarSessao() async {
     final prefs = await SharedPreferences.getInstance();
     return {
-      'token': prefs.getString(_keyToken) ?? '',
-      'clienteId': prefs.getInt(_keyClienteId) ?? 0,
-      'clienteNome': prefs.getString(_keyClienteNome) ?? '',
-      'cpfCliente': prefs.getString(_keyCpfCliente),
-      'ehMembroClube': prefs.getBool(_keyMembroClube) ?? false,
+      'token': prefs.getString('token') ?? '',
+      'clienteId': prefs.getInt('clienteId') ?? 0,
+      'clienteNome': prefs.getString('clienteNome') ?? 'Cliente',
+      'email': prefs.getString('email') ?? 'Não informado',
+      'telefone': prefs.getString('telefone') ?? 'Não informado',
+      'cpf': prefs.getString('cpf') ?? '',
+      'ehMembroClube': prefs.getBool('ehMembroClube') ?? false,
     };
   }
 
-  // 🏷️ Atualizar apenas os dados do Clube (CPF e Membro) após vincular
-  static Future<void> salvarClube(String cpf, bool ehMembro) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyCpfCliente, cpf);
-    await prefs.setBool(_keyMembroClube, ehMembro);
-  }
-
-  // 🚪 Limpar sessão (Logout)
+  // 🚪 Limpa a sessão (Logout)
   static Future<void> limparSessao() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();

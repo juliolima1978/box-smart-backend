@@ -186,6 +186,7 @@ class ClienteBase(BaseModel):
     nome: str
     email: str
     telefone: Optional[str] = None
+    cpf: Optional[str] = None
     perfil: Optional[str] = "cliente"  # 'cliente', 'admin', 'separador', 'entregador'
     ativo: Optional[bool] = True
 

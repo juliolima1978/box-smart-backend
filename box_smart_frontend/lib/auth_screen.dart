@@ -26,11 +26,12 @@ class _AuthScreenState extends State<AuthScreen> {
   final _loginEmailController = TextEditingController();
   final _loginSenhaController = TextEditingController();
 
-  // Controladores de Cadastro
+  // Controladores de Cadastro (Adicionado _cadCpfController)
   final _cadNomeController = TextEditingController();
   final _cadEmailController = TextEditingController();
   final _cadSenhaController = TextEditingController();
   final _cadTelefoneController = TextEditingController();
+  final _cadCpfController = TextEditingController();
 
   void _mostrarMensagem(String mensagem, {bool erro = false}) {
     if (!mounted) return;
@@ -126,8 +127,9 @@ class _AuthScreenState extends State<AuthScreen> {
               await SessionService.salvarSessao(
                 token: token,
                 clienteId: clienteId,
-                clienteNome: clienteNome,
-                cpfCliente: cpfCliente,
+                clienteNome: clienteLogado['nome'] ?? 'Cliente',
+                email: clienteLogado['email'] ?? '',
+                cpfCliente: clienteLogado['cpf'] ?? '',
                 ehMembroClube: ehMembro,
               );
 
@@ -173,6 +175,7 @@ class _AuthScreenState extends State<AuthScreen> {
           'email': _cadEmailController.text.trim(),
           'senha': _cadSenhaController.text.trim(),
           'telefone': _cadTelefoneController.text.trim(),
+          'cpf': _cadCpfController.text.trim(), // 👈 Enviando o CPF cadastrado
         }),
       );
 
@@ -182,6 +185,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _cadEmailController.clear();
         _cadSenhaController.clear();
         _cadTelefoneController.clear();
+        _cadCpfController.clear();
         setState(() => _isLogin = true);
       } else {
         String erroMsg = "Erro ao cadastrar.";
@@ -353,7 +357,6 @@ class _AuthScreenState extends State<AuthScreen> {
           isPassword: true,
         ),
         const SizedBox(height: 6),
-        // 🌟 BOTÃO ESQUECI MINHA SENHA ADICIONADO AQUI
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
@@ -415,6 +418,14 @@ class _AuthScreenState extends State<AuthScreen> {
           icon: Icons.phone_outlined,
           keyboardType: TextInputType.phone,
         ),
+        const SizedBox(height: 16),
+        // 🌟 CAMPO DE CPF ADICIONADO AO CADASTRO
+        _buildTextField(
+          controller: _cadCpfController,
+          label: 'CPF (Para Nota Fiscal)',
+          icon: Icons.badge_outlined,
+          keyboardType: TextInputType.number,
+        ),
       ],
     );
   }
@@ -427,7 +438,6 @@ class _AuthScreenState extends State<AuthScreen> {
     bool isPassword = false,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    // ... mesmo código do textfield
     return TextField(
       controller: controller,
       obscureText: obscureText,

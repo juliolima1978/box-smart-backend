@@ -65,12 +65,11 @@ def create_cliente(db: Session, cliente: schemas.ClienteCreate):
     endereco_completo = f"{rua}, {numero} - {bairro}" if rua else None
 
     db_cliente = models.Cliente(
-        nome=dados.get('nome'),
-        email=dados.get('email'),
-        senha_hash=dados.get('senha'),  # Lembre-se de aplicar hash se utilizar passlib
-        telefone=dados.get('telefone'),
-        cpf=dados.get('cpf'),
-        endereco=endereco_completo,
+        nome=cliente.nome,
+        email=cliente.email,
+        senha_hash=cliente.senha,
+        telefone=cliente.telefone,
+        cpf=cliente.cpf, # 👈 Salvando o CPF no banco
         is_admin=False
     )
     db.add(db_cliente)
