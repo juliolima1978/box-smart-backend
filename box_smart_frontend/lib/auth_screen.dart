@@ -129,6 +129,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 clienteId: clienteId,
                 clienteNome: clienteLogado['nome'] ?? 'Cliente',
                 email: clienteLogado['email'] ?? '',
+                telefone: clienteLogado['telefone'] ?? '', // 👈 Adicionado aqui também!
                 cpfCliente: clienteLogado['cpf'] ?? '',
                 ehMembroClube: ehMembro,
               );
@@ -185,6 +186,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _cadEmailController.clear();
         _cadSenhaController.clear();
         _cadTelefoneController.clear();
+        _cadCpfController.clear();
         _cadCpfController.clear();
         setState(() => _isLogin = true);
       } else {

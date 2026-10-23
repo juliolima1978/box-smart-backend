@@ -1248,14 +1248,17 @@ class _CartScreenState extends State<CartScreen> {
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           const SizedBox(height: 4),
-                                          Row(
+                                          Wrap(
+                                            spacing: 4,        // Espaço horizontal entre os itens
+                                            runSpacing: 2,     // Espaço vertical caso quebre linha
+                                            crossAxisAlignment: WrapCrossAlignment.center,
                                             children: [
                                               Text(
                                                 item['eVariavelPorPeso']
                                                     ? 'R\$ ${item['subtotal'].toStringAsFixed(2).replaceAll('.', ',')}'
                                                     : 'R\$ ${item['preco_efetivo'].toStringAsFixed(2).replaceAll('.', ',')}',
                                                 style: TextStyle(
-                                                  fontSize: 13,
+                                                  fontSize: 12, // Reduzido ligeiramente de 13 para 12
                                                   fontWeight: FontWeight.bold,
                                                   color: item['tem_clube']
                                                       ? const Color(0xFFD97706)
@@ -1263,40 +1266,30 @@ class _CartScreenState extends State<CartScreen> {
                                                 ),
                                               ),
                                               if (item['tem_clube']) ...[
-                                                const SizedBox(width: 6),
                                                 Text(
                                                   item['eVariavelPorPeso']
                                                       ? 'R\$ ${(item['preco_normal'] * (item['quantidade'] / 1000.0)).toStringAsFixed(2).replaceAll('.', ',')}'
                                                       : 'R\$ ${item['preco_normal'].toStringAsFixed(2).replaceAll('.', ',')}',
                                                   style: const TextStyle(
-                                                    fontSize: 10,
+                                                    fontSize: 9, // Reduzido de 10 para 9
                                                     color: Colors.grey,
-                                                    decoration: TextDecoration
-                                                        .lineThrough,
+                                                    decoration: TextDecoration.lineThrough,
                                                   ),
                                                 ),
-                                                const SizedBox(width: 4),
                                                 Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 4,
-                                                        vertical: 1,
-                                                      ),
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 3,
+                                                    vertical: 1,
+                                                  ),
                                                   decoration: BoxDecoration(
-                                                    color: const Color(
-                                                      0xFFFEF3C7,
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          4,
-                                                        ),
+                                                    color: const Color(0xFFFEF3C7),
+                                                    borderRadius: BorderRadius.circular(4),
                                                   ),
                                                   child: const Text(
                                                     'CLUBE',
                                                     style: TextStyle(
-                                                      fontSize: 8,
-                                                      fontWeight:
-                                                          FontWeight.bold,
+                                                      fontSize: 7, // Reduzido de 8 para 7
+                                                      fontWeight: FontWeight.bold,
                                                       color: Color(0xFFD97706),
                                                     ),
                                                   ),

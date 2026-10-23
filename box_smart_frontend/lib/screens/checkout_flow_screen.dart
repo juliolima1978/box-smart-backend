@@ -105,17 +105,24 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('${widget.baseUrl}/clientes/$_clienteIdEfetivo'),
+        Uri.parse('${widget.baseUrl}/clientes/'),
         headers: {'Authorization': 'Bearer $_tokenEfetivo'},
       );
       if (response.statusCode == 200 && mounted) {
-        final dados = jsonDecode(response.body);
-        setState(() {
-          _clienteNome = dados['nome'] ?? dados['name'] ?? _clienteNome;
-          _clienteEmail = dados['email'] ?? dados['e_mail'] ?? dados['email_cliente'] ?? _clienteEmail;
-          _clienteTelefone = dados['telefone'] ?? dados['celular'] ?? dados['whatsapp'] ?? dados['phone'] ?? _clienteTelefone;
-          _clienteCpf = dados['cpf'] ?? dados['cpf_cliente'] ?? dados['documento'] ?? _clienteCpf;
-        });
+        List clientes = jsonDecode(response.body);
+        var clienteLogado = clientes.firstWhere(
+              (c) => c['id'].toString() == _clienteIdEfetivo.toString(),
+          orElse: () => null,
+        );
+
+        if (clienteLogado != null) {
+          setState(() {
+            _clienteNome = clienteLogado['nome'] ?? _clienteNome;
+            _clienteEmail = clienteLogado['email'] ?? _clienteEmail;
+            _clienteTelefone = clienteLogado['telefone'] ?? _clienteTelefone;
+            _clienteCpf = clienteLogado['cpf'] ?? _clienteCpf;
+          });
+        }
       }
     } catch (_) {
     } finally {
