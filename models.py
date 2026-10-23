@@ -175,10 +175,14 @@ class Pedido(Base):
     longitude_entregador = Column(Float, nullable=True)
     
     # Pagamento e Cobrança
+    opcao_substituicao = Column(String(50), nullable=True) # 'reembolso' ou 'similar'
+    deseja_cpf_nota = Column(Boolean, default=False)
     forma_pagamento = Column(String, nullable=True)
     troco_para = Column(Float, default=0.0)
     esta_pago = Column(Boolean, default=False)
     codigo_confirmacao = Column(String(10), nullable=True)
+    cupom_codigo = Column(String(50), nullable=True)
+    valor_desconto_cupom = Column(Float, default=0.0)
     taxa_entrega = Column(Float, default=0.0)
     subtotal = Column(Float, default=0.0)
     total = Column(Float, nullable=False)

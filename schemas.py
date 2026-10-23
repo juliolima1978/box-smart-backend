@@ -256,9 +256,13 @@ class ItemCarrinho(BaseModel):
 class PedidoCreate(BaseModel):
     cliente_id: Optional[int] = None
     itens: List[ItemCarrinho]
+    opcao_substituicao: Optional[str] = None
+    deseja_cpf_nota: Optional[bool] = False
     endereco_entrega: Optional[str] = None
     forma_pagamento: Optional[str] = "Dinheiro na Entrega"
     troco_para: Optional[float] = 0.0
+    cupom_codigo: Optional[str] = None
+    valor_desconto_cupom: Optional[float] = 0.0
     esta_pago: Optional[bool] = False
 
 class ItemPedidoResponse(BaseModel):
@@ -290,6 +294,8 @@ class PedidoResponse(BaseModel):
     entregador_nome: Optional[str] = None
     total: float
     status: str
+    opcao_substituicao: Optional[str] = None
+    deseja_cpf_nota: Optional[bool] = False
     endereco_entrega: Optional[str] = None
     
     forma_pagamento: Optional[str] = "Dinheiro na Entrega"

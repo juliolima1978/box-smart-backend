@@ -114,13 +114,21 @@ def criar_pedido(db: Session, pedido: schemas.PedidoCreate):
                 produto_id=produto.id,
                 quantidade=item.quantidade,
                 preco_unitario=produto.preco
-            )
+            )   
         )
 
     db_pedido = models.Pedido(
         cliente_id=pedido.cliente_id,
         total=total_pedido,
-        status="Pendente"
+        status="Pendente",
+        opcao_substituicao=pedido.opcao_substituicao,
+        deseja_cpf_nota=pedido.deseja_cpf_nota,
+        tipo_entrega=pedido.tipo_entrega,
+        endereco_entrega=pedido.endereco_entrega,
+        forma_pagamento=pedido.forma_pagamento,
+        troco_para=pedido.troco_para,
+        cupom_codigo=pedido.cupom_codigo,
+        valor_desconto_cupom=pedido.valor_desconto_cupom,
     )
     db.add(db_pedido)
     db.flush()

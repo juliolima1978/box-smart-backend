@@ -256,49 +256,26 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         final dados = jsonDecode(response.body);
         setState(() {
           _valorDescontoCupom = (dados['valor_desconto'] as num).toDouble();
-          _codigoCupomAplicado = codigo;
+          _codigoCupomAplicado = dados['codigo'] ?? codigo.toUpperCase();
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cupom aplicado com sucesso!'), backgroundColor: Colors.green),
+            SnackBar(content: Text(dados['mensagem'] ?? 'Cupom aplicado com sucesso!'), backgroundColor: Colors.green),
           );
         }
       } else {
-        if (codigo.toUpperCase() == 'BOX10') {
-          setState(() {
-            _valorDescontoCupom = _subtotalCarrinho * 0.10;
-            _codigoCupomAplicado = 'BOX10';
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Cupom BOX10 aplicado (10% de desconto)!'), backgroundColor: Colors.green),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Cupom inválido ou expirado.'), backgroundColor: Colors.red),
-            );
-          }
+        final erro = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(erro['detail'] ?? 'Cupom inválido.'), backgroundColor: Colors.red),
+          );
         }
       }
-    } catch (_) {
-      if (codigo.toUpperCase() == 'BOX10') {
-        setState(() {
-          _valorDescontoCupom = _subtotalCarrinho * 0.10;
-          _codigoCupomAplicado = 'BOX10';
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cupom BOX10 aplicado!'), backgroundColor: Colors.green),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Erro ao validar cupom.'), backgroundColor: Colors.red),
-          );
-        }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro de conexão ao validar cupom: $e'), backgroundColor: Colors.red),
+        );
       }
     } finally {
       if (mounted) setState(() => _carregandoCupom = false);

@@ -78,6 +78,7 @@ try:
             print("⚠️ Arquivo 'serviceAccountKey.json' não encontrado na raiz. Notificações Push e Firestore desativados.")
 except Exception as e:
     print(f"⚠️ Erro ao inicializar o Firebase: {e}")
+    
 
 # ==========================================
 # 🔄 ROTINAS E GRAVAÇÃO DO WEBSAC / FIREBASE / POSTGRESQL
@@ -619,9 +620,37 @@ def atualizar_configuracoes_app(novas_configs: dict, db: Session = Depends(get_d
     return {"mensagem": "Configurações visuais atualizadas com sucesso!", "config": CONFIG_APP_CACHE}
 
 
+
+# ==========================================
+# 🔄 CUPONS DE DESCONTOS
+# ==========================================
+
+@app.post("/api/cupons/validar")
+def validar_cupom(dados: dict, db: Session = Depends(get_db)):
+    codigo = dados.get("codigo", "").strip().upper()
+    subtotal = float(dados.get("subtotal", 0.0))
+    
+    # Regras de cupons oficiais do Box Smart para testes reais
+    if codigo == "BOX10":
+        desconto = subtotal * 0.10
+        return {"valor_desconto": desconto, "codigo": "BOX10", "mensagem": "Cupom BOX10 aplicado (10% de desconto)!"}
+    elif codigo == "BOX20":
+        desconto = subtotal * 0.20
+        return {"valor_desconto": desconto, "codigo": "BOX20", "mensagem": "Cupom BOX20 aplicado (20% de desconto)!"}
+    elif codigo == "PRIME5":
+        desconto = 5.00 if subtotal >= 50.0 else subtotal * 0.05
+        return {"valor_desconto": desconto, "codigo": "PRIME5", "mensagem": "Desconto de R$ 5,00 aplicado!"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cupom inválido, expirado ou valor mínimo não atingido."
+        )
+
+
 # ==========================================
 # 📂 REGRAS DE NEGÓCIO E MÁQUINA DE ESTADOS
 # ==========================================
+
 class StatusPedidoEnum(str, Enum):
     PENDENTE = "PENDENTE"
     EM_SEPARACAO = "EM_SEPARACAO"
