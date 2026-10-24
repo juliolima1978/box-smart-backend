@@ -237,7 +237,6 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 🔍 CONTAINER COM WIDGET INTERACTIVEVIEWER PARA PINÇA DE ZOOM
             Container(
               height: 220,
               width: double.infinity,
@@ -250,7 +249,7 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                 child: imagemUrl != null && imagemUrl.startsWith('http')
                     ? InteractiveViewer(
                   minScale: 0.5,
-                  maxScale: 4.0, // Permite ampliar até 4x o tamanho original
+                  maxScale: 4.0,
                   child: Image.network(
                     imagemUrl,
                     fit: BoxFit.contain,
@@ -393,7 +392,6 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
           ? const Center(child: CircularProgressIndicator())
           : Column(
         children: [
-          // 🔍 CAMPO DE BARRA DE PESQUISA
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -658,6 +656,100 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 📋 CARD DE INSTRUÇÕES E PREFERÊNCIAS DO CLIENTE
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.assignment_ind_outlined, size: 16, color: Color(0xFF1E3A8A)),
+                              SizedBox(width: 6),
+                              Text(
+                                'Preferências e Instruções do Cliente',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1E3A8A)),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 10),
+                          Row(
+                            children: [
+                              const Text('• Falta de item: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text(
+                                (pedido['opcao_substituicao'] ?? 'reembolso').toString() == 'similar'
+                                    ? 'Substituir por produto similar'
+                                    : 'Reembolso do valor',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: (pedido['opcao_substituicao'] ?? '').toString() == 'similar'
+                                      ? Colors.orange.shade800
+                                      : Colors.blue.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Text('• CPF na Nota: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text(
+                                pedido['deseja_cpf_nota'] == true ? 'SIM' : 'NÃO',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: pedido['deseja_cpf_nota'] == true ? Colors.green.shade800 : Colors.red.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Text('• Recebimento: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Expanded(
+                                child: Text(
+                                  '${(pedido['tipo_entrega'] ?? 'retirada').toString().toUpperCase()} - ${pedido['endereco_entrega'] ?? 'Retirada no Box Smart'}',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Text('• Pagamento: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text(
+                                '${(pedido['forma_pagamento'] ?? 'pix').toString().toUpperCase()}${((pedido['troco_para'] as num?)?.toDouble() ?? 0.0) > 0 ? " (Troco para R\$ ${((pedido['troco_para'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2).replaceAll('.', ',')})" : ""}',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                          if (pedido['cupom_codigo'] != null && pedido['cupom_codigo'].toString().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Text('• Cupom: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                Text(
+                                  '${pedido['cupom_codigo']} (-R\$ ${((pedido['valor_desconto_cupom'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2).replaceAll('.', ',')})',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
                     // RESUMO FINANCEIRO
                     Container(
                       padding: const EdgeInsets.all(10),

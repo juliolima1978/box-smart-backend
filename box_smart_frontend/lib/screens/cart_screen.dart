@@ -4,19 +4,19 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../auth_screen.dart';
 import '../widgets/produto_card.dart';
-import '../services/session_service.dart'; // 👈 Import do SessionService
+import '../services/session_service.dart';
 import 'checkout_sucesso_screen.dart';
 import 'endereco_screen.dart';
 import '../main.dart';
 import 'produto_detalhe_screen.dart';
-import 'checkout_flow_screen.dart'; // 👈 Import do novo fluxo em etapas
+import 'checkout_flow_screen.dart';
 
 class CpfInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
     var text = newValue.text.replaceAll(RegExp(r'\D'), '');
     if (text.length > 11) text = text.substring(0, 11);
 
@@ -67,10 +67,9 @@ class _CartScreenState extends State<CartScreen> {
 
   String? _cpfCliente;
   bool _ehMembroClube = false;
-  bool _bannerDispensado = false; // Controla o fechamento do banner na sessão
+  bool _bannerDispensado = false;
 
-  final String baseUrl =
-      "https://box-smart-backend.onrender.com"; // 👈 URL oficial atualizada na nuvem (Render)
+  final String baseUrl = "https://box-smart-backend.onrender.com";
 
   String _enderecoEntrega = 'Endereço não selecionado';
   bool _precisaTroco = false;
@@ -91,7 +90,6 @@ class _CartScreenState extends State<CartScreen> {
 
   int? _enderecoSelecionadoId;
 
-  // Variáveis úteis para garantir uso de token/id persistidos
   String _tokenEfetivo = '';
   int _clienteIdEfetivo = 0;
 
@@ -108,7 +106,6 @@ class _CartScreenState extends State<CartScreen> {
     });
   }
 
-  // 🔄 Carrega sessão e dados do clube salvos no dispositivo
   Future<void> _carregarSessaoLocalESincronizar() async {
     final sessao = await SessionService.carregarSessao();
 
@@ -120,7 +117,6 @@ class _CartScreenState extends State<CartScreen> {
         if (_clienteIdEfetivo <= 0) {
           _clienteIdEfetivo = sessao['clienteId'] ?? 0;
         }
-        // Recupera o CPF e status de membro salvo do clube
         _cpfSessionCheck(sessao);
       });
       _calcularFreteBackend();
@@ -168,11 +164,9 @@ class _CartScreenState extends State<CartScreen> {
         if (mounted) {
           setState(() {
             _valorFreteCalculado = (dados['valor_frete'] as num).toDouble();
-            _faltamParaFreteGratis = (dados['faltam_para_frete_gratis'] as num)
-                .toDouble();
+            _faltamParaFreteGratis = (dados['faltam_para_frete_gratis'] as num).toDouble();
             _freteGratisHoje = dados['frete_gratis_hoje'] ?? false;
-            _valorMinimoFreteGratis =
-                (dados['valor_minimo_frete_gratis'] as num).toDouble();
+            _valorMinimoFreteGratis = (dados['valor_minimo_frete_gratis'] as num).toDouble();
           });
         }
       }
@@ -221,17 +215,13 @@ class _CartScreenState extends State<CartScreen> {
         ? (item['quantidade'] / 1000.0).toStringAsFixed(3).replaceAll('.', ',')
         : item['quantidade'].toString();
 
-    final TextEditingController controller = TextEditingController(
-      text: valorInicial,
-    );
+    final TextEditingController controller = TextEditingController(text: valorInicial);
 
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
             eVariavelPorPeso ? 'Alterar Peso (kg)' : 'Alterar Quantidade',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -250,22 +240,16 @@ class _CartScreenState extends State<CartScreen> {
               TextField(
                 controller: controller,
                 autofocus: true,
-                keyboardType: TextInputType.numberWithOptions(
-                  decimal: eVariavelPorPeso,
-                ),
+                keyboardType: TextInputType.numberWithOptions(decimal: eVariavelPorPeso),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(
                     eVariavelPorPeso ? RegExp(r'[\d.,]') : RegExp(r'\d'),
                   ),
                 ],
                 decoration: InputDecoration(
-                  labelText: eVariavelPorPeso
-                      ? 'Peso (ex: 0,500 kg)'
-                      : 'Quantidade',
+                  labelText: eVariavelPorPeso ? 'Peso (ex: 0,500 kg)' : 'Quantidade',
                   suffixText: eVariavelPorPeso ? 'kg' : 'un',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   isDense: true,
                 ),
               ),
@@ -274,22 +258,15 @@ class _CartScreenState extends State<CartScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: Colors.grey),
-              ),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaria,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () {
-                final textoFormatado = controller.text
-                    .replaceAll(',', '.')
-                    .trim();
+                final textoFormatado = controller.text.replaceAll(',', '.').trim();
 
                 if (eVariavelPorPeso) {
                   final double? pesoKg = double.tryParse(textoFormatado);
@@ -304,9 +281,7 @@ class _CartScreenState extends State<CartScreen> {
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          'Por favor, informe um peso válido acima de 0 kg.',
-                        ),
+                        content: Text('Por favor, informe um peso válido acima de 0 kg.'),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -323,9 +298,7 @@ class _CartScreenState extends State<CartScreen> {
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          'Por favor, informe uma quantidade válida.',
-                        ),
+                        content: Text('Por favor, informe uma quantidade válida.'),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -334,10 +307,7 @@ class _CartScreenState extends State<CartScreen> {
               },
               child: const Text(
                 'Salvar',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -349,9 +319,7 @@ class _CartScreenState extends State<CartScreen> {
   void _exibirModalVincularCPF() {
     if (!_exigirAutenticacao(context)) return;
 
-    final TextEditingController cpfController = TextEditingController(
-      text: _cpfCliente ?? '',
-    );
+    final TextEditingController cpfController = TextEditingController(text: _cpfCliente ?? '');
     bool enviando = false;
 
     showDialog(
@@ -360,17 +328,12 @@ class _CartScreenState extends State<CartScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: const Row(
                 children: [
                   Icon(Icons.workspace_premium_rounded, color: Colors.amber),
                   SizedBox(width: 8),
-                  Text(
-                    'Clube Box Prime',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  Text('Clube Box Prime', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ),
               content: Column(
@@ -393,9 +356,7 @@ class _CartScreenState extends State<CartScreen> {
                       labelText: 'CPF do Cliente',
                       hintText: '000.000.000-00',
                       prefixIcon: const Icon(Icons.badge_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       isDense: true,
                     ),
                   ),
@@ -403,47 +364,31 @@ class _CartScreenState extends State<CartScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: enviando
-                      ? null
-                      : () => Navigator.pop(dialogContext),
-                  child: const Text(
-                    'Cancelar',
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                  onPressed: enviando ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaria,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: enviando
                       ? null
                       : () async {
-                          setModalState(() => enviando = true);
-                          await _vincularCPFBackend(
-                            cpfController.text,
-                            dialogContext,
-                          );
-                          setModalState(() => enviando = false);
-                        },
+                    setModalState(() => enviando = true);
+                    await _vincularCPFBackend(cpfController.text, dialogContext);
+                    setModalState(() => enviando = false);
+                  },
                   child: enviando
                       ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
                       : const Text(
-                          'Vincular CPF',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    'Vincular CPF',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             );
@@ -453,10 +398,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Future<void> _vincularCPFBackend(
-    String cpfDigitado,
-    BuildContext dialogContext,
-  ) async {
+  Future<void> _vincularCPFBackend(String cpfDigitado, BuildContext dialogContext) async {
     final cpfLimpo = cpfDigitado.replaceAll(RegExp(r'\D'), '');
     if (cpfLimpo.length != 11) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -488,9 +430,6 @@ class _CartScreenState extends State<CartScreen> {
           _ehMembroClube = dados['eh_membro_clube'] ?? true;
         });
 
-        // 💾 Salva o CPF e status de membro localmente para persistir entre compras
-       // await SessionService.salvarClube(_cpfCliente!, _ehMembroClube, _ehMembroClube);
-
         _calcularFreteBackend();
 
         if (dialogContext.mounted) {
@@ -500,10 +439,7 @@ class _CartScreenState extends State<CartScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                dados['mensagem'] ??
-                    'CPF vinculado com sucesso! Descontos ativados.',
-              ),
+              content: Text(dados['mensagem'] ?? 'CPF vinculado com sucesso! Descontos ativados.'),
               backgroundColor: Colors.green.shade700,
             ),
           );
@@ -547,7 +483,7 @@ class _CartScreenState extends State<CartScreen> {
 
         final recomendacoesFiltradas = dados.where((produto) {
           return !widget.carrinho.keys.any(
-            (idItem) => idItem.toString() == produto['id'].toString(),
+                (idItem) => idItem.toString() == produto['id'].toString(),
           );
         }).toList();
 
@@ -570,31 +506,25 @@ class _CartScreenState extends State<CartScreen> {
     widget.carrinho.forEach((produtoId, quantidade) {
       if (quantidade > 0) {
         final prod = widget.produtos.firstWhere(
-          (p) => p['id'].toString() == produtoId.toString(),
+              (p) => p['id'].toString() == produtoId.toString(),
           orElse: () => null,
         );
 
         if (prod != null) {
           final double precoNormal =
-              double.tryParse(prod['preco'].toString().replaceAll(',', '.')) ??
-              0.0;
+              double.tryParse(prod['preco'].toString().replaceAll(',', '.')) ?? 0.0;
 
           final dynamic precoClubeRaw = prod['preco_clube'];
           final double precoClube = precoClubeRaw != null
-              ? (double.tryParse(
-                      precoClubeRaw.toString().replaceAll(',', '.'),
-                    ) ??
-                    0.0)
+              ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0)
               : 0.0;
 
-          // O clube só é aplicado se o usuário ativou o CPF e o produto possui preço clube válido
-          final bool temPrecoClubeValido =
-              precoClube > 0 && precoClube < precoNormal;
+          final bool temPrecoClubeValido = precoClube > 0 && precoClube < precoNormal;
           final bool temClube = _ehMembroClube && temPrecoClubeValido;
 
           final bool eVariavelPorPeso =
               prod['variavel_por_peso'] == true ||
-              prod['unidade']?.toString().toLowerCase() == 'kg';
+                  prod['unidade']?.toString().toLowerCase() == 'kg';
 
           final double quantidadeFator = eVariavelPorPeso
               ? quantidade / 1000.0
@@ -614,9 +544,7 @@ class _CartScreenState extends State<CartScreen> {
             'tem_clube': temClube,
             'preco_efetivo': precoEfetivo,
             'subtotal': precoEfetivo * quantidadeFator,
-            'economia': temClube
-                ? (precoNormal - precoClube) * quantidadeFator
-                : 0.0,
+            'economia': temClube ? (precoNormal - precoClube) * quantidadeFator : 0.0,
           });
         }
       }
@@ -625,30 +553,25 @@ class _CartScreenState extends State<CartScreen> {
     return itens;
   }
 
-  // Economia potencial que o cliente teria se ativasse o clube
   double get _economiaPotencialClube {
     double total = 0.0;
     widget.carrinho.forEach((produtoId, quantidade) {
       if (quantidade > 0) {
         final prod = widget.produtos.firstWhere(
-          (p) => p['id'].toString() == produtoId.toString(),
+              (p) => p['id'].toString() == produtoId.toString(),
           orElse: () => null,
         );
         if (prod != null) {
           final double precoNormal =
-              double.tryParse(prod['preco'].toString().replaceAll(',', '.')) ??
-              0.0;
+              double.tryParse(prod['preco'].toString().replaceAll(',', '.')) ?? 0.0;
           final dynamic precoClubeRaw = prod['preco_clube'];
           if (precoClubeRaw != null) {
             final double precoClube =
-                double.tryParse(
-                  precoClubeRaw.toString().replaceAll(',', '.'),
-                ) ??
-                0.0;
+                double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0;
             if (precoClube > 0 && precoClube < precoNormal) {
               final bool eVariavelPorPeso =
                   prod['variavel_por_peso'] == true ||
-                  prod['unidade']?.toString().toLowerCase() == 'kg';
+                      prod['unidade']?.toString().toLowerCase() == 'kg';
               final double fator = eVariavelPorPeso
                   ? quantidade / 1000.0
                   : quantidade.toDouble();
@@ -663,8 +586,8 @@ class _CartScreenState extends State<CartScreen> {
 
   double get _subtotalSemDesconto => _itensDetalhados.fold(
     0.0,
-    (sum, item) =>
-        sum +
+        (sum, item) =>
+    sum +
         (item['preco_normal'] *
             (item['eVariavelPorPeso']
                 ? item['quantidade'] / 1000.0
@@ -680,6 +603,7 @@ class _CartScreenState extends State<CartScreen> {
   double get _valorTotalFinal =>
       (_subtotalSemDesconto - _totalEconomiaClube) + _taxaEntrega;
 
+  // 🚚 BANNER DE FRETE GRÁTIS DINÂMICO E CORRIGIDO
   Widget _buildBannerProgressoFrete() {
     if (_tipoEntrega != 'entrega') return const SizedBox.shrink();
 
@@ -696,11 +620,7 @@ class _CartScreenState extends State<CartScreen> {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.local_shipping_rounded,
-              color: Colors.green.shade700,
-              size: 22,
-            ),
+            Icon(Icons.local_shipping_rounded, color: Colors.green.shade700, size: 22),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -717,7 +637,8 @@ class _CartScreenState extends State<CartScreen> {
       );
     }
 
-    if (_faltamParaFreteGratis <= 0) {
+    // 🌟 SÓ EXIBE O BANNER DE PARABÉNS SE REALMENTE ATINGIR OU ULTRAPASSAR O VALOR MÍNIMO
+    if (subtotalLiquido >= _valorMinimoFreteGratis) {
       return Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
@@ -728,11 +649,7 @@ class _CartScreenState extends State<CartScreen> {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.check_circle_rounded,
-              color: Colors.green.shade700,
-              size: 22,
-            ),
+            Icon(Icons.check_circle_rounded, color: Colors.green.shade700, size: 22),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -749,10 +666,9 @@ class _CartScreenState extends State<CartScreen> {
       );
     }
 
-    final double progresso = (subtotalLiquido / _valorMinimoFreteGratis).clamp(
-      0.0,
-      1.0,
-    );
+    // Caso contrário, calcula quanto falta para exibir a barra de progresso em amarelo
+    final double quantoFalta = (_valorMinimoFreteGratis - subtotalLiquido).clamp(0.0, _valorMinimoFreteGratis);
+    final double progresso = (subtotalLiquido / _valorMinimoFreteGratis).clamp(0.0, 1.0);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -767,15 +683,11 @@ class _CartScreenState extends State<CartScreen> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.local_shipping_outlined,
-                color: Colors.amber.shade900,
-                size: 20,
-              ),
+              Icon(Icons.local_shipping_outlined, color: Colors.amber.shade900, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Faltam R\$ ${_faltamParaFreteGratis.toStringAsFixed(2).replaceAll('.', ',')} para FRETE GRÁTIS!',
+                  'Faltam R\$ ${quantoFalta.toStringAsFixed(2).replaceAll('.', ',')} para FRETE GRÁTIS!',
                   style: TextStyle(
                     color: Colors.amber.shade900,
                     fontWeight: FontWeight.bold,
@@ -801,8 +713,7 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Widget _buildBannerBoxPrime() {
-    final bool ativo =
-        _ehMembroClube && _cpfCliente != null && _cpfCliente!.isNotEmpty;
+    final bool ativo = _ehMembroClube && _cpfCliente != null && _cpfCliente!.isNotEmpty;
 
     if (ativo) {
       final String cpfFormatado = _cpfCliente!.length == 11
@@ -819,11 +730,7 @@ class _CartScreenState extends State<CartScreen> {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.check_circle_rounded,
-              color: Colors.green.shade700,
-              size: 20,
-            ),
+            Icon(Icons.check_circle_rounded, color: Colors.green.shade700, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -882,11 +789,7 @@ class _CartScreenState extends State<CartScreen> {
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.workspace_premium_rounded,
-                  color: Colors.white,
-                  size: 32,
-                ),
+                const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 32),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -915,19 +818,11 @@ class _CartScreenState extends State<CartScreen> {
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.amber.shade900,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () => _exibirModalVincularCPF(),
-                  child: const Text(
-                    'Ativar CPF',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
+                  child: const Text('Ativar CPF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
             ),
@@ -944,11 +839,7 @@ class _CartScreenState extends State<CartScreen> {
                     color: Colors.black.withOpacity(0.25),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.close_rounded,
-                    color: Colors.white,
-                    size: 14,
-                  ),
+                  child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
                 ),
               ),
             ),
@@ -964,9 +855,7 @@ class _CartScreenState extends State<CartScreen> {
     if (_carregandoRecomendacoes) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 20.0),
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.primaria),
-        ),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primaria)),
       );
     }
 
@@ -981,11 +870,7 @@ class _CartScreenState extends State<CartScreen> {
           padding: EdgeInsets.only(top: 12.0, bottom: 12.0),
           child: Text(
             'Esqueceu de algo?',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
         ),
         SizedBox(
@@ -1024,9 +909,7 @@ class _CartScreenState extends State<CartScreen> {
 
                       try {
                         await http.post(
-                          Uri.parse(
-                            '$baseUrl/clientes/$_clienteIdEfetivo/favoritos/$id',
-                          ),
+                          Uri.parse('$baseUrl/clientes/$_clienteIdEfetivo/favoritos/$id'),
                           headers: {
                             'Content-Type': 'application/json',
                             'Authorization': 'Bearer $_tokenEfetivo',
@@ -1044,7 +927,6 @@ class _CartScreenState extends State<CartScreen> {
                         builder: (context) => ProdutoDetalheScreen(
                           clienteId: _clienteIdEfetivo,
                           token: _tokenEfetivo,
-                          //baseUrl: baseUrl,
                           favoritosIds: _favoritosEfetivos,
                           produto: produto,
                           carrinho: widget.carrinho,
@@ -1068,14 +950,11 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // 🚀 Botão Principal que agora abre o CheckoutFlowScreen em etapas
   void _iniciarCheckoutFlow() {
     if (!_exigirAutenticacao(context)) return;
 
     if (_itensDetalhados.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Seu carrinho está vazio!')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seu carrinho está vazio!')));
       return;
     }
 
@@ -1115,530 +994,387 @@ class _CartScreenState extends State<CartScreen> {
         appBar: AppBar(
           title: const Text(
             'Carrinho e Fechamento',
-            style: TextStyle(
-              color: Colors.black87,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
           ),
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
             onPressed: _tratarAcaoVoltar,
-            icon: const Icon(
-              Icons.arrow_back_ios_rounded,
-              color: Colors.black87,
-            ),
+            icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.black87),
           ),
           automaticallyImplyLeading: false,
         ),
         body: itens.isEmpty
             ? Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.shopping_bag_outlined, size: 80, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              const Text(
+                'Sua sacola está vazia',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Adicione produtos na Home para fechar a compra.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaria),
+                onPressed: () {
+                  if (widget.onMudarAba != null) {
+                    widget.onMudarAba!(0);
+                  } else if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text('Ir para as Ofertas', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        )
+            : Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.shopping_bag_outlined,
-                      size: 80,
-                      color: Colors.grey.shade400,
-                    ),
+                    _buildBannerProgressoFrete(),
+                    _buildBannerBoxPrime(),
                     const SizedBox(height: 16),
                     const Text(
-                      'Sua sacola está vazia',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black54,
-                      ),
+                      'Itens Selecionados',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Adicione produtos na Home para fechar a compra.',
-                      style: TextStyle(fontSize: 13, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaria,
-                      ),
-                      onPressed: () {
-                        if (widget.onMudarAba != null) {
-                          widget.onMudarAba!(0);
-                        } else if (Navigator.canPop(context)) {
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: const Text(
-                        'Ir para as Ofertas',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildBannerProgressoFrete(),
-                          _buildBannerBoxPrime(),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Itens Selecionados',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                    const SizedBox(height: 10),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: itens.length,
+                      itemBuilder: (context, index) {
+                        final item = itens[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
                           ),
-                          const SizedBox(height: 10),
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: itens.length,
-                            itemBuilder: (context, index) {
-                              final item = itens[index];
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 10),
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Colors.grey.shade200,
-                                  ),
-                                ),
-                                child: Row(
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 60,
+                                height: 60,
+                                padding: const EdgeInsets.all(4),
+                                child: item['imagem_url'] != null &&
+                                    item['imagem_url'].toString().startsWith('http')
+                                    ? Image.network(item['imagem_url'], fit: BoxFit.contain)
+                                    : const Icon(Icons.shopping_bag, size: 30, color: Colors.grey),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Container(
-                                      width: 60,
-                                      height: 60,
-                                      padding: const EdgeInsets.all(4),
-                                      child:
-                                          item['imagem_url'] != null &&
-                                              item['imagem_url']
-                                                  .toString()
-                                                  .startsWith('http')
-                                          ? Image.network(
-                                              item['imagem_url'],
-                                              fit: BoxFit.contain,
-                                            )
-                                          : const Icon(
-                                              Icons.shopping_bag,
-                                              size: 30,
-                                              color: Colors.grey,
-                                            ),
+                                    Text(
+                                      item['nome'],
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
+                                    const SizedBox(height: 4),
+                                    Wrap(
+                                      spacing: 4,
+                                      runSpacing: 2,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      children: [
+                                        Text(
+                                          item['eVariavelPorPeso']
+                                              ? 'R\$ ${item['subtotal'].toStringAsFixed(2).replaceAll('.', ',')}'
+                                              : 'R\$ ${item['preco_efetivo'].toStringAsFixed(2).replaceAll('.', ',')}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: item['tem_clube']
+                                                ? const Color(0xFFD97706)
+                                                : Colors.black87,
+                                          ),
+                                        ),
+                                        if (item['tem_clube']) ...[
                                           Text(
-                                            item['nome'],
+                                            item['eVariavelPorPeso']
+                                                ? 'R\$ ${(item['preco_normal'] * (item['quantidade'] / 1000.0)).toStringAsFixed(2).replaceAll('.', ',')}'
+                                                : 'R\$ ${item['preco_normal'].toStringAsFixed(2).replaceAll('.', ',')}',
                                             style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
+                                              fontSize: 9,
+                                              color: Colors.grey,
+                                              decoration: TextDecoration.lineThrough,
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          const SizedBox(height: 4),
-                                          Wrap(
-                                            spacing: 4,        // Espaço horizontal entre os itens
-                                            runSpacing: 2,     // Espaço vertical caso quebre linha
-                                            crossAxisAlignment: WrapCrossAlignment.center,
-                                            children: [
-                                              Text(
-                                                item['eVariavelPorPeso']
-                                                    ? 'R\$ ${item['subtotal'].toStringAsFixed(2).replaceAll('.', ',')}'
-                                                    : 'R\$ ${item['preco_efetivo'].toStringAsFixed(2).replaceAll('.', ',')}',
-                                                style: TextStyle(
-                                                  fontSize: 12, // Reduzido ligeiramente de 13 para 12
-                                                  fontWeight: FontWeight.bold,
-                                                  color: item['tem_clube']
-                                                      ? const Color(0xFFD97706)
-                                                      : Colors.black87,
-                                                ),
-                                              ),
-                                              if (item['tem_clube']) ...[
-                                                Text(
-                                                  item['eVariavelPorPeso']
-                                                      ? 'R\$ ${(item['preco_normal'] * (item['quantidade'] / 1000.0)).toStringAsFixed(2).replaceAll('.', ',')}'
-                                                      : 'R\$ ${item['preco_normal'].toStringAsFixed(2).replaceAll('.', ',')}',
-                                                  style: const TextStyle(
-                                                    fontSize: 9, // Reduzido de 10 para 9
-                                                    color: Colors.grey,
-                                                    decoration: TextDecoration.lineThrough,
-                                                  ),
-                                                ),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 3,
-                                                    vertical: 1,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFFFEF3C7),
-                                                    borderRadius: BorderRadius.circular(4),
-                                                  ),
-                                                  child: const Text(
-                                                    'CLUBE',
-                                                    style: TextStyle(
-                                                      fontSize: 7, // Reduzido de 8 para 7
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Color(0xFFD97706),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                          if (item['eVariavelPorPeso']) ...[
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              '${(item['quantidade'] / 1000.0).toStringAsFixed(3).replaceAll('.', ',')} kg × R\$ ${item['preco_efetivo'].toStringAsFixed(2).replaceAll('.', ',')}/kg',
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.grey,
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFEF3C7),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'CLUBE',
+                                              style: TextStyle(
+                                                fontSize: 7,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFFD97706),
                                               ),
                                             ),
-                                          ],
+                                          ),
                                         ],
+                                      ],
+                                    ),
+                                    if (item['eVariavelPorPeso']) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${(item['quantidade'] / 1000.0).toStringAsFixed(3).replaceAll('.', ',')} kg × R\$ ${item['preco_efetivo'].toStringAsFixed(2).replaceAll('.', ',')}/kg',
+                                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  InkWell(
+                                    onTap: () {
+                                      final String nomeRemovido = item['nome'];
+                                      final int idRemovido = item['id'];
+                                      final int qtdRemovida = item['quantidade'];
+
+                                      setState(() {
+                                        widget.carrinho.remove(idRemovido);
+                                      });
+
+                                      _buscarRecomendacoes();
+                                      _calcularFreteBackend();
+
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      messenger.hideCurrentSnackBar();
+
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text('$nomeRemovido removido do carrinho'),
+                                          duration: const Duration(seconds: 2),
+                                          behavior: SnackBarBehavior.floating,
+                                          dismissDirection: DismissDirection.horizontal,
+                                          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
+                                          action: SnackBarAction(
+                                            label: 'DESFAZER',
+                                            textColor: Colors.amber,
+                                            onPressed: () {
+                                              messenger.hideCurrentSnackBar();
+                                              if (!mounted) return;
+
+                                              setState(() {
+                                                widget.carrinho[idRemovido] = qtdRemovida;
+                                              });
+
+                                              _buscarRecomendacoes();
+                                              _calcularFreteBackend();
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(bottom: 6.0, right: 4.0),
+                                      child: Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: Colors.red.shade400,
+                                        size: 20,
                                       ),
                                     ),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
+                                  ),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
                                       children: [
-                                        InkWell(
-                                          onTap: () {
-                                            final String nomeRemovido =
-                                                item['nome'];
-                                            final int idRemovido = item['id'];
-                                            final int qtdRemovida =
-                                                item['quantidade'];
-
+                                        IconButton(
+                                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                          padding: EdgeInsets.zero,
+                                          icon: const Icon(Icons.remove, size: 16),
+                                          onPressed: () {
                                             setState(() {
-                                              widget.carrinho.remove(
-                                                idRemovido,
-                                              );
-                                            });
-
-                                            _buscarRecomendacoes();
-                                            _calcularFreteBackend();
-
-                                            final messenger =
-                                                ScaffoldMessenger.of(context);
-                                            messenger.hideCurrentSnackBar();
-
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  '$nomeRemovido removido do carrinho',
-                                                ),
-                                                duration: const Duration(
-                                                  seconds: 2,
-                                                ),
-                                                behavior:
-                                                    SnackBarBehavior.floating,
-                                                dismissDirection:
-                                                    DismissDirection.horizontal,
-                                                margin: const EdgeInsets.only(
-                                                  left: 16,
-                                                  right: 16,
-                                                  bottom: 20,
-                                                ),
-                                                action: SnackBarAction(
-                                                  label: 'DESFAZER',
-                                                  textColor: Colors.amber,
-                                                  onPressed: () {
-                                                    messenger
-                                                        .hideCurrentSnackBar();
-
-                                                    if (!mounted) return;
-
-                                                    setState(() {
-                                                      widget.carrinho[idRemovido] =
-                                                          qtdRemovida;
-                                                    });
-
-                                                    _buscarRecomendacoes();
-                                                    _calcularFreteBackend();
-                                                  },
-                                                ),
-                                              ),
-                                            );
-
-                                            Future.delayed(
-                                              const Duration(seconds: 2),
-                                              () {
-                                                if (mounted) {
-                                                  messenger
-                                                      .hideCurrentSnackBar();
+                                              if (item['eVariavelPorPeso']) {
+                                                if (widget.carrinho[item['id']]! > 250) {
+                                                  widget.carrinho[item['id']] =
+                                                      widget.carrinho[item['id']]! - 250;
+                                                } else {
+                                                  widget.carrinho.remove(item['id']);
+                                                  _buscarRecomendacoes();
                                                 }
-                                              },
-                                            );
+                                              } else {
+                                                if (widget.carrinho[item['id']]! > 1) {
+                                                  widget.carrinho[item['id']] =
+                                                      widget.carrinho[item['id']]! - 1;
+                                                } else {
+                                                  widget.carrinho.remove(item['id']);
+                                                  _buscarRecomendacoes();
+                                                }
+                                              }
+                                            });
+                                            _calcularFreteBackend();
                                           },
+                                        ),
+                                        InkWell(
+                                          onTap: () => _mostrarDialogoEditarQuantidade(item),
+                                          borderRadius: BorderRadius.circular(4),
                                           child: Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 6.0,
-                                              right: 4.0,
-                                            ),
-                                            child: Icon(
-                                              Icons.delete_outline_rounded,
-                                              color: Colors.red.shade400,
-                                              size: 20,
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                            child: Text(
+                                              item['eVariavelPorPeso']
+                                                  ? '${(item['quantidade'] / 1000.0).toStringAsFixed(3).replaceAll('.', ',')}kg'
+                                                  : '${item['quantidade']}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                                decoration: TextDecoration.underline,
+                                                decorationStyle: TextDecorationStyle.dotted,
+                                              ),
                                             ),
                                           ),
                                         ),
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade100,
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              IconButton(
-                                                constraints:
-                                                    const BoxConstraints(
-                                                      minWidth: 32,
-                                                      minHeight: 32,
-                                                    ),
-                                                padding: EdgeInsets.zero,
-                                                icon: const Icon(
-                                                  Icons.remove,
-                                                  size: 16,
-                                                ),
-                                                onPressed: () {
-                                                  setState(() {
-                                                    if (item['eVariavelPorPeso']) {
-                                                      if (widget
-                                                              .carrinho[item['id']]! >
-                                                          250) {
-                                                        widget.carrinho[item['id']] =
-                                                            widget
-                                                                .carrinho[item['id']]! -
-                                                            250;
-                                                      } else {
-                                                        widget.carrinho.remove(
-                                                          item['id'],
-                                                        );
-                                                        _buscarRecomendacoes();
-                                                      }
-                                                    } else {
-                                                      if (widget
-                                                              .carrinho[item['id']]! >
-                                                          1) {
-                                                        widget.carrinho[item['id']] =
-                                                            widget
-                                                                .carrinho[item['id']]! -
-                                                            1;
-                                                      } else {
-                                                        widget.carrinho.remove(
-                                                          item['id'],
-                                                        );
-                                                        _buscarRecomendacoes();
-                                                      }
-                                                    }
-                                                  });
-                                                  _calcularFreteBackend();
-                                                },
-                                              ),
-                                              InkWell(
-                                                onTap: () =>
-                                                    _mostrarDialogoEditarQuantidade(
-                                                      item,
-                                                    ),
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 4,
-                                                      ),
-                                                  child: Text(
-                                                    item['eVariavelPorPeso']
-                                                        ? '${(item['quantidade'] / 1000.0).toStringAsFixed(3).replaceAll('.', ',')}kg'
-                                                        : '${item['quantidade']}',
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 13,
-                                                      decoration: TextDecoration
-                                                          .underline,
-                                                      decorationStyle:
-                                                          TextDecorationStyle
-                                                              .dotted,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              IconButton(
-                                                constraints:
-                                                    const BoxConstraints(
-                                                      minWidth: 32,
-                                                      minHeight: 32,
-                                                    ),
-                                                padding: EdgeInsets.zero,
-                                                icon: const Icon(
-                                                  Icons.add,
-                                                  size: 16,
-                                                ),
-                                                onPressed: () {
-                                                  setState(() {
-                                                    if (item['eVariavelPorPeso']) {
-                                                      widget.carrinho[item['id']] =
-                                                          widget
-                                                              .carrinho[item['id']]! +
-                                                          250;
-                                                    } else {
-                                                      widget.carrinho[item['id']] =
-                                                          widget
-                                                              .carrinho[item['id']]! +
-                                                          1;
-                                                    }
-                                                  });
-                                                  _calcularFreteBackend();
-                                                },
-                                              ),
-                                            ],
-                                          ),
+                                        IconButton(
+                                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                          padding: EdgeInsets.zero,
+                                          icon: const Icon(Icons.add, size: 16),
+                                          onPressed: () {
+                                            setState(() {
+                                              if (item['eVariavelPorPeso']) {
+                                                widget.carrinho[item['id']] =
+                                                    widget.carrinho[item['id']]! + 250;
+                                              } else {
+                                                widget.carrinho[item['id']] =
+                                                    widget.carrinho[item['id']]! + 1;
+                                              }
+                                            });
+                                            _calcularFreteBackend();
+                                          },
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                          _buildCarrosselRecomendacoes(),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Subtotal:',
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                    Text(
-                                      'R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (_totalEconomiaClube > 0) ...[
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text(
-                                        'Desconto Box Prime (CPF):',
-                                        style: TextStyle(
-                                          color: Colors.green,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        '- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}',
-                                        style: const TextStyle(
-                                          color: Colors.green,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ],
-                                const Divider(height: 20),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Total Final:',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      'R\$ ${(_subtotalSemDesconto - _totalEconomiaClube).toStringAsFixed(2).replaceAll('.', ',')}',
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w900,
-                                        color: AppColors.primaria,
-                                      ),
-                                    ),
-                                  ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    _buildCarrosselRecomendacoes(),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Subtotal:', style: TextStyle(color: Colors.grey)),
+                              Text(
+                                'R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}',
+                                style: const TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                          if (_totalEconomiaClube > 0) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Desconto Box Prime (CPF):',
+                                  style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  '- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}',
+                                  style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
+                          ],
+                          const Divider(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Total Final:',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                'R\$ ${(_subtotalSemDesconto - _totalEconomiaClube).toStringAsFixed(2).replaceAll('.', ',')}',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.primaria,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
-                  ),
-                  // 🎯 Botão Inferior atualizado para chamar o fluxo de etapas
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 10,
-                          offset: const Offset(0, -4),
-                        ),
-                      ],
-                    ),
-                    child: SafeArea(
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaria,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                          onPressed: _processandoPedido
-                              ? null
-                              : _iniciarCheckoutFlow, // 👈 Chama o novo fluxo de checkout
-                          child: Text(
-                            'Finalizar Pedido • R\$ ${(_subtotalSemDesconto - _totalEconomiaClube).toStringAsFixed(2).replaceAll('.', ',')}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, -4),
                   ),
                 ],
               ),
+              child: SafeArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaria,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    onPressed: _processandoPedido ? null : _iniciarCheckoutFlow,
+                    child: Text(
+                      'Finalizar Pedido • R\$ ${(_subtotalSemDesconto - _totalEconomiaClube).toStringAsFixed(2).replaceAll('.', ',')}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

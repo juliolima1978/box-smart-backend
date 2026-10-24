@@ -40,8 +40,9 @@ class _ProdutoCardState extends State<ProdutoCard> {
           if (p is! Map) return false;
           final idGlobal = p['id']?.toString() ?? p['codigo']?.toString();
           return idGlobal == idBusca;
-        }, orElse: () => null);
-        if (completo != null && completo is Map<String, dynamic>) {
+        }, orElse: () => <String, dynamic>{}); // 👈 Corrigido para evitar TypeError
+
+        if (completo.isNotEmpty && completo is Map<String, dynamic>) {
           prodMap.addAll(completo);
         }
       }
@@ -106,7 +107,7 @@ class _ProdutoCardState extends State<ProdutoCard> {
             prod['saldo_estoque'];
 
     if (rawEstoque == null) {
-      return false; // Se o backend não informar estoque, assume disponível
+      return false;
     }
 
     final double? estoqueNum = double.tryParse(
@@ -282,7 +283,7 @@ class _ProdutoCardState extends State<ProdutoCard> {
     final bool pesavel = _eVariavelPorPeso;
     final bool semEstoque = _semEstoque;
 
-    // 🌟 Leitura robusta para aceitar booleano, inteiro (1/0) ou string ('true'/'1')
+    // 🌟 Leitura robusta das flags de destaque vindas do portal
     final dynamic rawMaisVendido = prod['mais_vendido'] ?? prod['is_mais_vendido'] ?? prod['maisVendido'];
     final bool eMaisVendido = rawMaisVendido == true || rawMaisVendido == 1 || rawMaisVendido.toString().toLowerCase() == 'true' || rawMaisVendido.toString() == '1';
 
@@ -291,18 +292,17 @@ class _ProdutoCardState extends State<ProdutoCard> {
 
     final double precoNormal =
         double.tryParse(prod['preco'].toString().replaceAll(',', '.')) ?? 0.0;
+
     final dynamic precoClubeRaw = prod['preco_clube'];
-    final bool temPrecoClube = precoClubeRaw != null;
+    final bool temPrecoClube = precoClubeRaw != null && (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0) > 0;
     final double precoClube = temPrecoClube
-        ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ??
-        0.0)
+        ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0)
         : 0.0;
 
-    // 🏷️ Cálculo do percentual de desconto
-    final double precoDescontoEfetivo = (temPrecoClube && precoClube > 0) ? precoClube : 0.0;
-    final bool temDesconto = precoDescontoEfetivo > 0 && precoDescontoEfetivo < precoNormal;
+    // 🏷️ Cálculo do percentual de desconto do Clube
+    final bool temDesconto = temPrecoClube && precoClube > 0 && precoClube < precoNormal;
     final int percentualDesconto = temDesconto
-        ? (((precoNormal - precoDescontoEfetivo) / precoNormal) * 100).round()
+        ? (((precoNormal - precoClube) / precoNormal) * 100).round()
         : 0;
 
     final bool eFavorito = widget.favoritosIds.contains(_produtoId);
@@ -331,8 +331,7 @@ class _ProdutoCardState extends State<ProdutoCard> {
                   height: 125,
                   width: double.infinity,
                   padding: const EdgeInsets.all(8),
-                  child:
-                  prod['imagem_url'] != null &&
+                  child: prod['imagem_url'] != null &&
                       prod['imagem_url'].toString().startsWith('http')
                       ? Image.network(
                     prod['imagem_url'],
@@ -375,7 +374,7 @@ class _ProdutoCardState extends State<ProdutoCard> {
                     ),
                   ),
 
-                // 🏷️ Selo de Percentual de Desconto (Ex: -15%)
+                // 🏷️ Selo de Percentual de Desconto do Clube (Ex: -15%)
                 if (temDesconto && !semEstoque)
                   Positioned(
                     top: 8,
@@ -386,7 +385,7 @@ class _ProdutoCardState extends State<ProdutoCard> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade600,
+                        color: Colors.green.shade700,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -400,8 +399,8 @@ class _ProdutoCardState extends State<ProdutoCard> {
                     ),
                   ),
 
-                // Selo MAIS VENDIDO na lateral direita
-                if (eMaisVendido && !semEstoque)
+                // Selo MAIS VENDIDO / DESTAQUE na lateral direita
+                if ((eMaisVendido || eDestaque) && !semEstoque)
                   Positioned(
                     top: 15,
                     right: 0,
@@ -478,7 +477,7 @@ class _ProdutoCardState extends State<ProdutoCard> {
                       ),
                     ),
 
-                    // 🌟 EXIBIÇÃO INTELIGENTE DE PREÇO NORMAL VS PREÇO CLUBE
+                    // 🌟 EXIBIÇÃO INTELIGENTE DE PREÇO NORMAL VS PREÇO CLUBE / BOX PRIME
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -496,17 +495,18 @@ class _ProdutoCardState extends State<ProdutoCard> {
                               ),
                               const SizedBox(width: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFEF3C7),
+                                  color: Colors.amber.shade700,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
-                                  'CLUBE',
+                                  'BOX PRIME',
                                   style: TextStyle(
                                     fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFD97706),
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
                                   ),
                                 ),
                               ),
@@ -533,7 +533,7 @@ class _ProdutoCardState extends State<ProdutoCard> {
                               style: TextStyle(
                                 fontSize: 16,
                                 color: temPrecoClube && precoClube > 0
-                                    ? const Color(0xFFD97706)
+                                    ? Colors.green.shade800
                                     : Colors.black87,
                                 fontWeight: FontWeight.w900,
                               ),

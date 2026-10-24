@@ -33,7 +33,6 @@ class CheckoutFlowScreen extends StatefulWidget {
 class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
   int _etapaAtual = 0; // 0: Carrinho, 1: Dados, 2: Entrega, 3: Pagamento
 
-  // Variáveis efetivas de sessão e usuário
   int _clienteIdEfetivo = 0;
   String _tokenEfetivo = '';
   String _clienteNome = '';
@@ -42,9 +41,9 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
   String _clienteCpf = '';
   bool _carregandoDadosCliente = true;
 
-  // 🎛️ Preferências (Iniciam null para forçar escolha)
-  String? _opcaoSubstituicao; // 'reembolso' ou 'similar'
-  String? _desejaCpfNota; // 'sim' ou 'nao'
+  // 🎛️ Preferências
+  String? _opcaoSubstituicao;
+  String? _desejaCpfNota;
 
   // 🎟️ Cupom de Desconto
   final TextEditingController _cupomController = TextEditingController();
@@ -52,15 +51,15 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
   String? _codigoCupomAplicado;
   bool _carregandoCupom = false;
 
-  // 🚚 Entrega, Endereço e Frete Dinâmico
+  // 🚚 Entrega e Frete
   String _tipoEntrega = 'retirada'; // 'retirada' ou 'delivery'
   int? _enderecoSelecionadoId;
   String _enderecoEntrega = 'Endereço não selecionado';
-  double _valorFreteCalculado = 8.00; // Frete padrão delivery
+  double _valorFreteCalculado = 8.00;
   bool _carregandoFrete = false;
 
   // 💰 Pagamento e Troco
-  String _formaPagamento = 'pix'; // 'pix', 'cartao_credito', 'dinheiro'
+  String _formaPagamento = 'pix';
   bool _precisaTroco = false;
   final TextEditingController _trocoController = TextEditingController();
 
@@ -75,7 +74,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     _carregarSessaoECliente();
   }
 
-  // Carrega da sessão e complementa com a API do cliente
   Future<void> _carregarSessaoECliente() async {
     final sessao = await SessionService.carregarSessao();
     if (mounted) {
@@ -132,7 +130,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     }
   }
 
-  // 🚚 Cálculo de Frete Dinâmico com Backend e Fallback Robusto
   Future<void> _calcularFreteBackend() async {
     if (_tipoEntrega != 'delivery') {
       setState(() => _valorFreteCalculado = 0.0);
@@ -142,7 +139,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     setState(() => _carregandoFrete = true);
 
     try {
-      String url = '${widget.baseUrl}/api/frete/calcular?subtotal=$_subtotalCarrinho';
+      String url = '${widget.baseUrl}/api/frete/calcular?subtotal=$_subtotalComDesconto';
       if (_enderecoSelecionadoId != null) {
         url += '&endereco_id=$_enderecoSelecionadoId';
       }
@@ -177,7 +174,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     super.dispose();
   }
 
-  // 🔒 Validações por Etapa
   void _avancarEtapa() {
     if (widget.carrinho.isEmpty && _etapaAtual == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -216,7 +212,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
     if (_etapaAtual < 3) {
       setState(() => _etapaAtual++);
-      if (_etapaAtual == 3 && _tipoEntrega == 'delivery') {
+      if (_etapaAtual == 2 && _tipoEntrega == 'delivery') {
         _calcularFreteBackend();
       }
     } else {
@@ -232,7 +228,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     }
   }
 
-  // 🎟️ Validação de Cupom
   Future<void> _aplicarCupom() async {
     final codigo = _cupomController.text.trim();
     if (codigo.isEmpty) return;
@@ -248,7 +243,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         },
         body: jsonEncode({
           'codigo': codigo,
-          'subtotal': _subtotalCarrinho,
+          'subtotal': _subtotalComDesconto,
         }),
       );
 
@@ -282,29 +277,46 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     }
   }
 
-  // Cálculos de Totais com suporte a peso fracionado
-  double get _subtotalCarrinho {
+  // Cálculos financeiros consolidados
+  double get _subtotalSemDesconto {
     double subtotal = 0.0;
+    widget.carrinho.forEach((prodId, qtdOrGramas) {
+      final prod = _encontrarProdutoGlobal(prodId);
+      if (prod != null) {
+        final double precoNormal = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
+        final bool pesavel = _eVariavelPorPeso(prod);
+        double fator = pesavel ? (qtdOrGramas / 1000.0) : qtdOrGramas.toDouble();
+        subtotal += precoNormal * fator;
+      }
+    });
+    return subtotal;
+  }
+
+  double get _totalEconomiaClube {
+    double economia = 0.0;
     widget.carrinho.forEach((prodId, qtdOrGramas) {
       final prod = _encontrarProdutoGlobal(prodId);
       if (prod != null) {
         final double precoNormal = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
         final dynamic precoClubeRaw = prod['preco_clube'];
         final double precoClube = precoClubeRaw != null ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0) : 0.0;
-        final double precoEfetivo = (precoClube > 0) ? precoClube : precoNormal;
 
-        final bool pesavel = _eVariavelPorPeso(prod);
-        double fator = pesavel ? (qtdOrGramas / 1000.0) : qtdOrGramas.toDouble();
-        subtotal += precoEfetivo * fator;
+        if (precoClube > 0 && precoClube < precoNormal) {
+          final bool pesavel = _eVariavelPorPeso(prod);
+          double fator = pesavel ? (qtdOrGramas / 1000.0) : qtdOrGramas.toDouble();
+          economia += (precoNormal - precoClube) * fator;
+        }
       }
     });
-    return subtotal;
+    return economia;
   }
+
+  double get _subtotalComDesconto => _subtotalSemDesconto - _totalEconomiaClube;
 
   double get _valorTaxaEntrega => _tipoEntrega == 'delivery' ? _valorFreteCalculado : 0.0;
 
   double get _valorTotalFinal {
-    double total = _subtotalCarrinho - _valorDescontoCupom + _valorTaxaEntrega;
+    double total = _subtotalComDesconto - _valorDescontoCupom + _valorTaxaEntrega;
     return total < 0 ? 0.0 : total;
   }
 
@@ -345,7 +357,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       ),
       body: Column(
         children: [
-          // 📊 BARRA DE PROGRESSO SUPERIOR
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -400,7 +411,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
           ),
           const Divider(height: 1),
 
-          // 📄 CONTEÚDO DAS ETAPAS
           Expanded(
             child: IndexedStack(
               index: _etapaAtual,
@@ -417,7 +427,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     );
   }
 
-  // 🛒 ETAPA 1: Carrinho
   Widget _buildEtapaCarrinhoCompleto() {
     if (widget.carrinho.isEmpty) {
       return Center(
@@ -680,9 +689,19 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Subtotal', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text('R\$ ${_subtotalCarrinho.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text('R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   ],
                 ),
+                if (_totalEconomiaClube > 0) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Desconto Box Prime (Clube)', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                      Text('- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                    ],
+                  ),
+                ],
                 if (_valorDescontoCupom > 0) ...[
                   const SizedBox(height: 6),
                   Row(
@@ -725,7 +744,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     );
   }
 
-  // 👤 ETAPA 2: Dados Pessoais (Completos e robustos)
   Widget _buildEtapaDadosPessoais() {
     if (_carregandoDadosCliente) {
       return const Center(child: CircularProgressIndicator(color: AppColors.primaria));
@@ -785,7 +803,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     );
   }
 
-  // 🚚 ETAPA 3: Entrega e Frete Dinâmico
   Widget _buildEtapaEntrega() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -901,25 +918,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
             ),
           ),
         ],
-        const SizedBox(height: 20),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primaria,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-          onPressed: _avancarEtapa,
-          child: const Text('Continuar para Pagamento', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        ),
-      ],
-    );
-  }
-
-  // 💳 ETAPA 4: Pagamento
-  Widget _buildEtapaPagamento() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
+        const SizedBox(height: 12),
         Card(
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
@@ -928,21 +927,31 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Resumo da Compra', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const Text('Resumo da Compra e Frete', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
                 const Divider(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Subtotal dos Itens', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text('R\$ ${_subtotalCarrinho.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const Text('Subtotal', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text('R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   ],
                 ),
+                if (_totalEconomiaClube > 0) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Desconto Box Prime (Clube)', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                      Text('- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                    ],
+                  ),
+                ],
                 if (_valorDescontoCupom > 0) ...[
                   const SizedBox(height: 6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Desconto (Cupom)', style: TextStyle(fontSize: 12, color: Colors.green)),
+                      const Text('Desconto Cupom', style: TextStyle(fontSize: 12, color: Colors.green)),
                       Text('- R\$ ${_valorDescontoCupom.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
                     ],
                   ),
@@ -959,10 +968,101 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total Final', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    const Text('Total com Frete', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                     Text(
                       'R\$ ${_valorTotalFinal.toStringAsFixed(2).replaceAll('.', ',')}',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.primaria),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primaria),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaria,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: _avancarEtapa,
+          child: const Text('Continuar para Pagamento', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+      ],
+    );
+  }
+
+  // 💳 ETAPA 4: Pagamento com Resumo Detalhado (Clube, Cupons, Frete e Total)
+  Widget _buildEtapaPagamento() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Resumo Detalhado do Pedido', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const Divider(height: 20),
+
+                // Subtotal
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Subtotal dos Itens', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text('R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+
+                // Desconto do Clube Box Prime (se houver)
+                if (_totalEconomiaClube > 0) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Desconto Box Prime (Clube)', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                      Text('- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                    ],
+                  ),
+                ],
+
+                // Desconto de Cupom (se houver)
+                if (_valorDescontoCupom > 0) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Desconto (Cupom: ${_codigoCupomAplicado ?? ""})', style: const TextStyle(fontSize: 12, color: Colors.green)),
+                      Text('- R\$ ${_valorDescontoCupom.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                    ],
+                  ),
+                ],
+
+                const SizedBox(height: 6),
+
+                // Taxa de Entrega / Frete
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Taxa de Entrega (${_tipoEntrega == 'delivery' ? 'Delivery' : 'Retirada'})', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(_valorTaxaEntrega == 0 ? 'GRÁTIS' : 'R\$ ${_valorTaxaEntrega.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+
+                const Divider(height: 20),
+
+                // Total Final
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total a Pagar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(
+                      'R\$ ${_valorTotalFinal.toStringAsFixed(2).replaceAll('.', ',')}',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaria),
                     ),
                   ],
                 ),
@@ -1056,7 +1156,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     );
   }
 
-  // 🚀 Envio do Pedido
+  // 🚀 Envio do Pedido com Recibo Detalhado e Opções de Navegação
   Future<void> _processarFinalizacaoPedido() async {
     showDialog(
       context: context,
@@ -1105,9 +1205,13 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         }),
       );
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context); // Fecha o loading
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final respostaData = json.decode(response.body);
+        final int pedidoId = respostaData['id'] ?? respostaData['pedido_id'] ?? 1001;
+
+        // Limpa o carrinho após o sucesso
         setState(() => widget.carrinho.clear());
 
         if (mounted) {
@@ -1116,22 +1220,75 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
             barrierDismissible: false,
             builder: (ctx) => AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.check_circle_rounded, color: Colors.green, size: 28),
-                  SizedBox(width: 8),
-                  Text('Pedido Realizado!', style: TextStyle(fontSize: 16)),
+                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 30),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Pedido #$pedidoId Realizado!',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
-              content: const Text('Seu pedido foi registrado com sucesso e já está sendo preparado no Box Smart!'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tudo certo! Seu pedido foi registrado com sucesso e já está sendo preparado.',
+                      style: TextStyle(fontSize: 12, color: Colors.black87),
+                    ),
+                    const Divider(height: 20),
+
+                    // Detalhes do Recibo
+                    _buildReciboLinha('Valor Total:', 'R\$ ${_valorTotalFinal.toStringAsFixed(2).replaceAll('.', ',')}', destaque: true),
+                    const SizedBox(height: 6),
+                    _buildReciboLinha('Pagamento:', _formatarNomePagamento(_formaPagamento)),
+                    const SizedBox(height: 6),
+                    _buildReciboLinha('Tipo de Entrega:', _tipoEntrega == 'delivery' ? 'Entrega em Domicílio' : 'Retirada no Armazém'),
+                    const SizedBox(height: 6),
+                    _buildReciboLinha('Local / Endereço:', enderecoFinal),
+                  ],
+                ),
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               actions: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaria),
-                  onPressed: () => () {
-                    Navigator.pop(ctx);
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  },
-                  child: const Text('OK', style: TextStyle(color: Colors.white)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Botão 1: Ir para Acompanhamento
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaria,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx); // Fecha o diálogo
+                        Navigator.of(context).popUntil((route) => route.isFirst); // Volta pra home e limpa pilha
+                        // Opcional: Se tiver tela de histórico/acompanhamento, você pode navegar para ela aqui.
+                      },
+                      child: const Text('Acompanhar Pedido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(height: 8),
+                    // Botão 2: Voltar para a Tela Principal
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        side: BorderSide(color: Colors.grey.shade400),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx); // Fecha o diálogo
+                        Navigator.of(context).popUntil((route) => route.isFirst); // Retorna à tela principal
+                      },
+                      child: const Text('Voltar à Tela Principal', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1140,7 +1297,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro ao finalizar pedido: ${response.body}')),
+            SnackBar(content: Text('Erro ao finalizar pedido: ${response.body}'), backgroundColor: Colors.red),
           );
         }
       }
@@ -1148,9 +1305,42 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro de conexão: $e')),
+          SnackBar(content: Text('Erro de conexão: $e'), backgroundColor: Colors.red),
         );
       }
     }
+  }
+
+  // Auxiliar para formatar o nome da forma de pagamento no recibo
+  String _formatarNomePagamento(String codigo) {
+    switch (codigo) {
+      case 'pix': return 'PIX (Aprovação Imediata)';
+      case 'cartao_credito': return 'Cartão de Crédito / Débito';
+      case 'dinheiro': return 'Dinheiro na Entrega/Retirada';
+      default: return codigo;
+    }
+  }
+
+  // Auxiliar visual para as linhas do recibo
+  Widget _buildReciboLinha(String rotulo, String valor, {bool destaque = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(rotulo, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            valor,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: destaque ? FontWeight.w900 : FontWeight.bold,
+              color: destaque ? AppColors.primaria : Colors.black87,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
