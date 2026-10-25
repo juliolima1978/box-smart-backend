@@ -69,7 +69,7 @@ class _CartScreenState extends State<CartScreen> {
   bool _ehMembroClube = false;
   bool _bannerDispensado = false;
 
-  final String baseUrl = "https://box-smart-backend.onrender.com";
+  final String baseUrl = "http://192.168.15.175:8000";
 
   String _enderecoEntrega = 'Endereço não selecionado';
   bool _precisaTroco = false;
@@ -85,7 +85,7 @@ class _CartScreenState extends State<CartScreen> {
   double _valorFreteCalculado = 7.00;
   double _faltamParaFreteGratis = 0.0;
   bool _freteGratisHoje = false;
-  double _valorMinimoFreteGratis = 0;
+  double _valorMinimoFreteGratis = 300.00;
   bool _carregandoFrete = false;
 
   int? _enderecoSelecionadoId;
@@ -163,10 +163,13 @@ class _CartScreenState extends State<CartScreen> {
         final dados = json.decode(response.body);
         if (mounted) {
           setState(() {
-            _valorFreteCalculado = (dados['valor_frete'] as num).toDouble();
-            _faltamParaFreteGratis = (dados['faltam_para_frete_gratis'] as num).toDouble();
+            // 👇 Adicionado proteção contra nulos e chaves diferentes!
+            _valorFreteCalculado = (dados['valor_frete'] ?? dados['frete'] ?? 7.00).toDouble();
+            _faltamParaFreteGratis = (dados['faltam_para_frete_gratis'] ?? 0.0).toDouble();
             _freteGratisHoje = dados['frete_gratis_hoje'] ?? false;
-            _valorMinimoFreteGratis = (dados['valor_minimo_frete_gratis'] as num).toDouble();
+
+            // Garantindo que se a API não mandar, ele fica em 300
+            _valorMinimoFreteGratis = (dados['valor_minimo_frete_gratis'] ?? dados['valor_minimo'] ?? 300.00).toDouble();
           });
         }
       }

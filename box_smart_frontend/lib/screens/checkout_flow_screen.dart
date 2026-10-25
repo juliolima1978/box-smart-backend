@@ -203,25 +203,30 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         );
         return;
       }
+
+      // 👇 ALTERAÇÃO: Removi a obrigatoriedade estrita de escolher "Deseja CPF".
+      // Se ele não escolher, o app assume 'nao' automaticamente e deixa passar.
       if (_desejaCpfNota == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Por favor, informe se deseja CPF na nota.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
+        setState(() {
+          _desejaCpfNota = 'nao';
+        });
       }
+
+      // 👇 ALTERAÇÃO: Apenas avisa o cliente que ele não tem CPF, mas NÃO barra a compra mais.
+      // E automaticamente muda a escolha para 'nao' para evitar erros na API de Nota Fiscal.
       if (_desejaCpfNota == 'sim' && (_clienteCpf.trim().isEmpty)) {
+        setState(() {
+          _desejaCpfNota = 'nao';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'CPF não cadastrado. Altere para "Não" na nota ou cadastre seu CPF.',
+              'Atenção: Você não tem CPF cadastrado. A compra será concluída sem CPF na nota.',
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.blue,
+            duration: Duration(seconds: 4),
           ),
         );
-        return;
       }
     }
 
@@ -1743,7 +1748,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
   }
 
   // 🚀 Envio do Pedido com Recibo Detalhado e Opções de Navegação
-  // 🚀 Envio do Pedido com Recibo Detalhado e Opções de Navegação
   Future<void> _processarFinalizacaoPedido() async {
     showDialog(
       context: context,
@@ -1754,14 +1758,12 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     try {
       List<Map<String, dynamic>> itensPayload = [];
 
-      // Monta os itens enviando o preço efetivo que o cliente está vendo na tela
       widget.carrinho.forEach((prodId, qtdOrGramas) {
         final prod = _encontrarProdutoGlobal(prodId);
         if (prod != null) {
           final bool pesavel = _eVariavelPorPeso(prod);
           double quantidadeFinal = pesavel ? (qtdOrGramas / 1000.0) : qtdOrGramas.toDouble();
 
-          // Captura o preço exato que o cliente deve pagar (incluindo o desconto do clube)
           final double precoNormal = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
           final dynamic precoClubeRaw = prod['preco_clube'];
           final double precoClube = precoClubeRaw != null ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0) : 0.0;
@@ -1770,7 +1772,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
           itensPayload.add({
             'produto_id': prodId,
             'quantidade': quantidadeFinal,
-            'preco_unitario': precoEfetivo, // 👈 ENVIAR PREÇO COM DESCONTO PARA O BACKEND NÃO RECALCULAR ERRADO
+            'preco_unitario': precoEfetivo,
           });
         }
       });
@@ -1793,14 +1795,22 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         'troco_para': valorTrocoPara,
         'cupom_codigo': _codigoCupomAplicado,
         'valor_desconto_cupom': _valorDescontoCupom,
-        'valor_subtotal': _subtotalSemDesconto,      // 👈 ENVIAR O SUBTOTAL REAL
-        'desconto_clube': _totalEconomiaClube,       // 👈 ENVIAR A ECONOMIA DO CLUBE
-        'taxa_entrega': _valorTaxaEntrega,           // 👈 ENVIAR O VALOR DO FRETE CALCULADO (E NÃO O PADRÃO)
-        'valor_total': _valorTotalFinal,             // 👈 ENVIAR O VALOR TOTAL FINAL DA TELA
+        'valor_subtotal': _subtotalSemDesconto,
+        'desconto_clube': _totalEconomiaClube,
+        'taxa_entrega': _valorTaxaEntrega,
+        'valor_total': _valorTotalFinal,
       };
 
+      // 👇 FORÇANDO O IP DO SERVIDOR PARA GARANTIR A CONEXÃO (Substituindo baseUrl)
+      // 👇 Usando a baseUrl correta da tela + tratamento de barra final
+      final String urlCorreta = widget.baseUrl.endsWith('/')
+          ? '${widget.baseUrl}pedidos'
+          : '${widget.baseUrl}/pedidos';
+
+      debugPrint("==== ENVIANDO PEDIDO PARA: $urlCorreta ====");
+
       final response = await http.post(
-        Uri.parse('${widget.baseUrl}/pedidos'), // Verifica se no seu backend é /pedidos ou /pedidos/
+        Uri.parse(urlCorreta),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_tokenEfetivo',
@@ -1810,14 +1820,14 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
       if (mounted) Navigator.pop(context); // Fecha o loading
 
+      debugPrint("STATUS CODE DA RESPOSTA: ${response.statusCode}");
+      debugPrint("CORPO DA RESPOSTA: ${response.body}");
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final respostaData = json.decode(response.body);
         final int pedidoId = respostaData['id'] ?? respostaData['pedido_id'] ?? 1001;
 
-        // Salvar os totais finais ANTES de limpar o carrinho para poder exibir no recibo
         final double reciboTotal = _valorTotalFinal;
-
-        // Limpa o carrinho após o sucesso
         setState(() => widget.carrinho.clear());
 
         if (mounted) {
@@ -1839,72 +1849,35 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   ),
                 ],
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Tudo certo! Seu pedido foi registrado com sucesso e já está sendo preparado.',
-                      style: TextStyle(fontSize: 12, color: Colors.black87),
-                    ),
-                    const Divider(height: 20),
-
-                    // Detalhes do Recibo (Agora usando o reciboTotal que foi salvo antes da limpeza)
-                    _buildReciboLinha('Valor Total:', 'R\$ ${reciboTotal.toStringAsFixed(2).replaceAll('.', ',')}', destaque: true), // 👈 CORREÇÃO DO BUG DO RECIBO
-                    const SizedBox(height: 6),
-                    _buildReciboLinha('Pagamento:', _formatarNomePagamento(_formaPagamento)),
-                    const SizedBox(height: 6),
-                    _buildReciboLinha('Tipo de Entrega:', _tipoEntrega == 'delivery' ? 'Entrega em Domicílio' : 'Retirada no Armazém'),
-                    const SizedBox(height: 6),
-                    _buildReciboLinha('Local / Endereço:', enderecoFinal),
-                  ],
-                ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Seu pedido foi registrado com sucesso e já está sendo preparado.', style: TextStyle(fontSize: 12)),
+                  const Divider(height: 20),
+                  _buildReciboLinha('Valor Total:', 'R\$ ${reciboTotal.toStringAsFixed(2).replaceAll('.', ',')}', destaque: true),
+                  const SizedBox(height: 6),
+                  _buildReciboLinha('Pagamento:', _formatarNomePagamento(_formaPagamento)),
+                  const SizedBox(height: 6),
+                  _buildReciboLinha('Entrega:', _tipoEntrega == 'delivery' ? 'Domicílio' : 'Retirada'),
+                ],
               ),
-              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               actions: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaria,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaria),
+                  onPressed: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProfileScreen(
+                          clienteId: _clienteIdEfetivo,
+                          token: widget.token,
                         ),
                       ),
-                      onPressed: () {
-                        // 👇 FECHA TUDO ATÉ A HOME E EMPURRA O PERFIL POR CIMA
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProfileScreen(
-                              clienteId: _clienteIdEfetivo,
-                              token: widget.token,
-                            ),
-                          ),
-                              (route) => route.isFirst, // O route.isFirst garante que a Home continue aberta por baixo
-                        );
-                      },
-                      child: const Text('Acompanhar Pedido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        side: BorderSide(color: Colors.grey.shade400),
-                      ),
-                      onPressed: () {
-                        // 👇 APENAS VOLTA PARA A HOME
-                        Navigator.of(context).popUntil((route) => route.isFirst);
-                      },
-                      child: const Text('Voltar à Tela Principal', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
+                          (route) => route.isFirst,
+                    );
+                  },
+                  child: const Text('Acompanhar Pedido', style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -1913,21 +1886,21 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro ao finalizar pedido: ${response.body}'), backgroundColor: Colors.red),
+            SnackBar(content: Text('ERRO AO CRIAR: ${response.body}'), backgroundColor: Colors.red),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context); // Fecha loading caso dê crash
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro de conexão: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('FALHA DE CONEXÃO: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  // Auxiliar para formatar o nome da forma de pagamento no recibo
+  // 👇 FUNÇÕES AUXILIARES FORA DO ESCOPO DE ENVIO
   String _formatarNomePagamento(String codigo) {
     switch (codigo) {
       case 'pix':
@@ -1941,12 +1914,11 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     }
   }
 
-  // Auxiliar visual para as linhas do recibo
   Widget _buildReciboLinha(
-    String rotulo,
-    String valor, {
-    bool destaque = false,
-  }) {
+      String rotulo,
+      String valor, {
+        bool destaque = false,
+      }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1967,4 +1939,4 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       ],
     );
   }
-}
+} // 👈 Fim da classe _CheckoutFlowScreenState

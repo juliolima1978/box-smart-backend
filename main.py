@@ -1914,29 +1914,38 @@ def buscar_lat_long_nominatim(rua: str, numero: str, cidade: str, estado: str, c
 
 
 
+from fastapi import Request
+
 @app.post("/pedidos/", status_code=status.HTTP_201_CREATED)
 @app.post("/pedidos", status_code=status.HTTP_201_CREATED)
-def criar_pedido(
-    dados: schemas.PedidoCreate, 
+async def criar_pedido(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.Cliente = Depends(get_current_user)
 ):
-    # ✅ 1. USA OS VALORES ENVIADOS PELO APLICATIVO (FLUTTER)
-    subtotal = dados.valor_subtotal
-    taxa_entrega = dados.taxa_entrega
-    valor_total = dados.valor_total
+    # Lemos o JSON cru (raw) diretamente do app para garantir que nada seja perdido
+    payload = await request.json()
+    
+    print(f"🚀 PAYLOAD CRU RECEBIDO NO BACKEND: {payload}")
 
-    endereco_req = getattr(dados, 'endereco_entrega', None)
+    # Forçamos a leitura segura das chaves, lidando com nulls e erros de formatação
+    subtotal = float(payload.get('valor_subtotal') or 0.0)
+    taxa_entrega = float(payload.get('taxa_entrega') or 0.0)
+    valor_total = float(payload.get('valor_total') or 0.0)
+
+    print(f"💰 FINANCEIRO APÓS LEITURA: Subtotal={subtotal} | Frete={taxa_entrega} | Total={valor_total}")
+
+    endereco_req = payload.get('endereco_entrega', None)
     end_entrega = (
         endereco_req.strip() if (endereco_req and endereco_req.strip()) 
         else (obter_endereco_formatado_cliente(current_user) or "Endereço não informado")
     )
 
-    forma_pag = getattr(dados, 'forma_pagamento', None) or "Dinheiro na Entrega"
-    troco = float(getattr(dados, 'troco_para', 0.0) or 0.0)
-    pago = bool(getattr(dados, 'esta_pago', False))
+    forma_pag = payload.get('forma_pagamento', None) or "Dinheiro na Entrega"
+    troco = float(payload.get('troco_para') or 0.0)
+    pago = bool(payload.get('esta_pago', False))
 
-    # ✅ 2. CRIA O PEDIDO COM OS VALORES FIÉIS
+    # Cria o pedido FORÇANDO os valores exatos recebidos
     novo_pedido = models.Pedido(
         cliente_id=current_user.id,
         status="PENDENTE",
@@ -1947,10 +1956,10 @@ def criar_pedido(
         forma_pagamento=forma_pag,
         troco_para=troco,
         esta_pago=pago,
-        opcao_substituicao=getattr(dados, 'opcao_substituicao', None),
-        deseja_cpf_nota=getattr(dados, 'deseja_cpf_nota', False),
-        cupom_codigo=getattr(dados, 'cupom_codigo', None),
-        valor_desconto_cupom=getattr(dados, 'valor_desconto_cupom', 0.0),
+        opcao_substituicao=payload.get('opcao_substituicao', None),
+        deseja_cpf_nota=bool(payload.get('deseja_cpf_nota', False)),
+        cupom_codigo=payload.get('cupom_codigo', None),
+        valor_desconto_cupom=float(payload.get('valor_desconto_cupom') or 0.0),
         data_criacao=agora_brasilia()
     )
 
@@ -1958,20 +1967,21 @@ def criar_pedido(
     db.commit()
     db.refresh(novo_pedido)
 
-    # ✅ 3. CRIA OS ITENS RESPEITANDO O PREÇO DE CLUBE DO APP
-    for item in dados.itens:
+    # Lemos os itens e o preço unitário que veio do App
+    itens = payload.get('itens', [])
+    for item in itens:
         db_item = models.ItemPedido(
             pedido_id=novo_pedido.id,
-            produto_id=item.produto_id,
-            quantidade=item.quantidade,
-            preco_unitario=item.preco_unitario # 👈 Confia no preço com desconto que o app enviou!
+            produto_id=item['produto_id'],
+            quantidade=float(item['quantidade']),
+            preco_unitario=float(item.get('preco_unitario') or 0.0) # 👈 Confia 100% no app!
         )
         db.add(db_item)
     
     db.commit()
     db.refresh(novo_pedido)
 
-    # 4. NOTIFICAÇÃO PUSH
+    # Notificação...
     if getattr(current_user, 'fcm_token', None):
         enviar_notificacao_push(
             fcm_token=current_user.fcm_token,
@@ -1980,6 +1990,7 @@ def criar_pedido(
             dados_extra={"pedido_id": str(novo_pedido.id), "status": "PENDENTE"}
         )
 
+    # O FastApi converterá a classe SQLAlchemy para o schema correspondente, se necessário
     return novo_pedido
 
 @app.get("/admin/pedidos")
@@ -2008,7 +2019,7 @@ def listar_pedidos_admin(status: Optional[str] = None, db: Session = Depends(get
                 "produto_id": item.produto_id,
                 "nome": item.produto.nome if item.produto else "Produto",
                 "quantidade": item.quantidade,
-                "preco_unitario": float(item.preco_unitario or 0.0),
+                "preco_unitario": float(item.preco_unitario if item.preco_unitario is not None else 0.0),
                 "imagem_url": getattr(item.produto, 'imagem_url', None) if item.produto else None,
                 "categoria_nome": cat_nome,
                 "categoria": cat_nome
@@ -2034,9 +2045,10 @@ def listar_pedidos_admin(status: Optional[str] = None, db: Session = Depends(get
             "cliente": cliente_info,
             "cliente_nome": p.cliente.nome if p.cliente else "Cliente Balcão",
             "eh_membro_clube": getattr(p, 'eh_membro_clube', False),
-            "subtotal": float(getattr(p, 'subtotal', p.total) or 0.0),
-            "taxa_entrega": float(getattr(p, 'taxa_entrega', 0.0) or 0.0),
-            "total": float(p.total or 0.0),
+            "subtotal": float(p.subtotal if p.subtotal is not None else 0.0),
+            "taxa_entrega": float(p.taxa_entrega if p.taxa_entrega is not None else 0.0),
+            "total": float(p.total if p.total is not None else 0.0),
+            "valor_total": float(p.total if p.total is not None else 0.0), # 👈 Adiciona essa chave para retrocompatibilidade com o app Flutter!
             "status": p.status,
             "forma_pagamento": getattr(p, 'forma_pagamento', None) or "Dinheiro na Entrega",
             "troco_para": float(getattr(p, 'troco_para', 0.0) or 0.0),
@@ -2162,9 +2174,10 @@ def listar_pedidos_cliente(
     return [
         {
             "id": p.id,
-            "subtotal": float(getattr(p, 'subtotal', p.total) or 0.0),
-            "taxa_entrega": float(getattr(p, 'taxa_entrega', 0.0) or 0.0),
-            "total": float(p.total or 0.0),
+            "subtotal": float(p.subtotal if p.subtotal is not None else 0.0),
+            "taxa_entrega": float(p.taxa_entrega if p.taxa_entrega is not None else 0.0),
+            "total": float(p.total if p.total is not None else 0.0),
+            "valor_total": float(p.total if p.total is not None else 0.0), # 👈 Adiciona essa chave para retrocompatibilidade com o app Flutter!
             "status": getattr(p, 'status', 'PENDENTE'),
             "endereco_entrega": getattr(p, 'endereco_entrega', None) or (p.cliente.endereco if p.cliente and hasattr(p.cliente, 'endereco') else None) or 'Endereço não informado',
             "data_criacao": p.data_criacao.isoformat() if p.data_criacao else None,
@@ -2173,7 +2186,7 @@ def listar_pedidos_cliente(
                     "produto_id": item.produto_id,
                     "nome_produto": item.produto.nome if item.produto else "Produto",
                     "quantidade": item.quantidade,
-                    "preco_unitario": float(item.preco_unitario or 0.0),
+                    "preco_unitario": float(item.preco_unitario if item.preco_unitario is not None else 0.0),
                     "categoria_nome": item.produto.categoria.nome if (item.produto and getattr(item.produto, 'categoria', None)) else "Geral"
                 }
                 for item in p.itens
@@ -2206,15 +2219,21 @@ def obter_detalhes_pedido(
             "produto_id": item.produto_id,
             "nome": item.produto.nome if item.produto else "Produto",
             "quantidade": item.quantidade,
-            "preco_unitario": float(item.preco_unitario or 0.0)
+            
+            # 👇 Ajuste no preço dos itens para respeitar o desconto
+            "preco_unitario": float(item.preco_unitario if item.preco_unitario is not None else 0.0) 
         })
 
     return {
         "id": pedido.id,
         "status": pedido.status,
-        "subtotal": float(getattr(pedido, 'subtotal', pedido.total) or 0.0),
-        "taxa_entrega": float(getattr(pedido, 'taxa_entrega', 0.0) or 0.0),
-        "total": float(pedido.total or 0.0),
+        
+        # 👇 CORREÇÃO AQUI: Troca "p." por "pedido."
+        "subtotal": float(pedido.subtotal if pedido.subtotal is not None else 0.0),
+        "taxa_entrega": float(pedido.taxa_entrega if pedido.taxa_entrega is not None else 0.0),
+        "total": float(pedido.total if pedido.total is not None else 0.0),
+        "valor_total": float(pedido.total if pedido.total is not None else 0.0), 
+        
         "cliente_nome": pedido.cliente.nome if pedido.cliente else "Cliente",
         "endereco_entrega": getattr(pedido, 'endereco_entrega', None) or getattr(pedido.cliente, 'endereco', 'Não informado'),
         "forma_pagamento": getattr(pedido, 'forma_pagamento', 'Não informada'),
