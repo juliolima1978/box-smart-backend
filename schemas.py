@@ -252,6 +252,7 @@ class TokenResponse(BaseModel):
 class ItemCarrinho(BaseModel):
     produto_id: int
     quantidade: float
+    preco_unitario: float = 0.0
 
 class PedidoCreate(BaseModel):
     cliente_id: Optional[int] = None
@@ -264,6 +265,9 @@ class PedidoCreate(BaseModel):
     cupom_codigo: Optional[str] = None
     valor_desconto_cupom: Optional[float] = 0.0
     esta_pago: Optional[bool] = False
+    valor_subtotal: float = 0.0 # 👈 ISSO PRECISA EXISTIR AQUI
+    taxa_entrega: float = 0.0   # 👈 ISSO PRECISA EXISTIR AQUI
+    valor_total: float = 0.0
 
 class ItemPedidoResponse(BaseModel):
     id: int

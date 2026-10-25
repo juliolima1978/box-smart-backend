@@ -1875,11 +1875,8 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                         ),
                       ),
                       onPressed: () {
-                        // 1. Volta para a Home
-                        Navigator.of(context).popUntil((route) => route.isFirst);
-
-                        // 2. Empurra a tela de Perfil por cima
-                        Navigator.push(
+                        // 👇 FECHA TUDO ATÉ A HOME E EMPURRA O PERFIL POR CIMA
+                        Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ProfileScreen(
@@ -1887,6 +1884,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                               token: widget.token,
                             ),
                           ),
+                              (route) => route.isFirst, // O route.isFirst garante que a Home continue aberta por baixo
                         );
                       },
                       child: const Text('Acompanhar Pedido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -1901,6 +1899,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                         side: BorderSide(color: Colors.grey.shade400),
                       ),
                       onPressed: () {
+                        // 👇 APENAS VOLTA PARA A HOME
                         Navigator.of(context).popUntil((route) => route.isFirst);
                       },
                       child: const Text('Voltar à Tela Principal', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
