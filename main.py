@@ -1921,11 +1921,10 @@ def criar_pedido(
     db: Session = Depends(get_db),
     current_user: models.Cliente = Depends(get_current_user)
 ):
-    subtotal = calcular_total(dados.itens, db)
-
-    info_frete = calcular_frete_backend(subtotal=subtotal, db=db)
-    taxa_entrega = info_frete["valor_frete"]
-    valor_total = subtotal + taxa_entrega
+    # ✅ 1. USA OS VALORES ENVIADOS PELO APLICATIVO (FLUTTER)
+    subtotal = dados.valor_subtotal
+    taxa_entrega = dados.taxa_entrega
+    valor_total = dados.valor_total
 
     endereco_req = getattr(dados, 'endereco_entrega', None)
     end_entrega = (
@@ -1937,6 +1936,7 @@ def criar_pedido(
     troco = float(getattr(dados, 'troco_para', 0.0) or 0.0)
     pago = bool(getattr(dados, 'esta_pago', False))
 
+    # ✅ 2. CRIA O PEDIDO COM OS VALORES FIÉIS
     novo_pedido = models.Pedido(
         cliente_id=current_user.id,
         status="PENDENTE",
@@ -1947,6 +1947,10 @@ def criar_pedido(
         forma_pagamento=forma_pag,
         troco_para=troco,
         esta_pago=pago,
+        opcao_substituicao=getattr(dados, 'opcao_substituicao', None),
+        deseja_cpf_nota=getattr(dados, 'deseja_cpf_nota', False),
+        cupom_codigo=getattr(dados, 'cupom_codigo', None),
+        valor_desconto_cupom=getattr(dados, 'valor_desconto_cupom', 0.0),
         data_criacao=agora_brasilia()
     )
 
@@ -1954,20 +1958,20 @@ def criar_pedido(
     db.commit()
     db.refresh(novo_pedido)
 
+    # ✅ 3. CRIA OS ITENS RESPEITANDO O PREÇO DE CLUBE DO APP
     for item in dados.itens:
-        prod = db.query(models.Produto).filter(models.Produto.id == item.produto_id).first()
-        preco = prod.preco if prod else 0.0
         db_item = models.ItemPedido(
             pedido_id=novo_pedido.id,
             produto_id=item.produto_id,
             quantidade=item.quantidade,
-            preco_unitario=preco
+            preco_unitario=item.preco_unitario # 👈 Confia no preço com desconto que o app enviou!
         )
         db.add(db_item)
     
     db.commit()
     db.refresh(novo_pedido)
 
+    # 4. NOTIFICAÇÃO PUSH
     if getattr(current_user, 'fcm_token', None):
         enviar_notificacao_push(
             fcm_token=current_user.fcm_token,

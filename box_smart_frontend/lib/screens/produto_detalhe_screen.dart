@@ -193,8 +193,25 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
   Widget _buildQuemViuTambemViu() {
     final recomendacoes = widget.produtosListaGlobal.where((p) {
       if (p is! Map) return false;
+
       final idStr = p['id']?.toString() ?? p['codigo']?.toString();
-      return idStr != _produtoId.toString();
+      if (idStr == _produtoId.toString()) return false; // Não mostra o próprio produto
+
+      // --- FILTRO DE IMAGEM E ESTOQUE APLICADO NAS RECOMENDAÇÕES ---
+      final String imgUrl = p['imagem_url']?.toString().toLowerCase() ?? '';
+      if (imgUrl.contains('seu-storage.com.br') || imgUrl.contains('seustorage')) {
+        return false;
+      }
+
+      final dynamic rawEstoque = p['estoque'] ?? p['qtd_estoque'] ?? p['quantidade_estoque'];
+      if (rawEstoque != null) {
+        final double? estoqueNum = double.tryParse(rawEstoque.toString().replaceAll(',', '.'));
+        if (estoqueNum != null && estoqueNum <= 0) {
+          return false;
+        }
+      }
+
+      return true;
     }).take(10).toList();
 
     if (recomendacoes.isEmpty) return const SizedBox.shrink();
@@ -214,7 +231,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
           ),
         ),
         SizedBox(
-          height: 270,
+          height: 300,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -223,7 +240,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
               final prodRelacionado = recomendacoes[index];
 
               return Container(
-                width: 165,
+                width: 200,
                 margin: const EdgeInsets.only(right: 12, bottom: 6),
                 child: ProdutoCard(
                   produto: prodRelacionado,

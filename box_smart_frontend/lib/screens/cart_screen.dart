@@ -85,7 +85,7 @@ class _CartScreenState extends State<CartScreen> {
   double _valorFreteCalculado = 7.00;
   double _faltamParaFreteGratis = 0.0;
   bool _freteGratisHoje = false;
-  double _valorMinimoFreteGratis = 100.00;
+  double _valorMinimoFreteGratis = 0;
   bool _carregandoFrete = false;
 
   int? _enderecoSelecionadoId;
@@ -551,6 +551,16 @@ class _CartScreenState extends State<CartScreen> {
     });
 
     return itens;
+  }
+
+  // ⚖️ Verifica se há pelo menos um item vendido por peso no carrinho
+  bool get _temItemVariavelPorPeso {
+    for (var item in _itensDetalhados) {
+      if (item['eVariavelPorPeso'] == true) {
+        return true;
+      }
+    }
+    return false;
   }
 
   double get _economiaPotencialClube {
@@ -1045,6 +1055,36 @@ class _CartScreenState extends State<CartScreen> {
                   children: [
                     _buildBannerProgressoFrete(),
                     _buildBannerBoxPrime(),
+
+                    // ⚖️ PAINEL DE AVISO DE PESO VARIÁVEL AQUI:
+                    if (_temItemVariavelPorPeso)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber.shade300),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.scale_outlined, color: Colors.amber.shade900, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Atenção: Seu carrinho contém produtos de peso variável. O valor total é uma estimativa e será ajustado exatamente após a pesagem no balcão.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.amber.shade900,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     const SizedBox(height: 16),
                     const Text(
                       'Itens Selecionados',

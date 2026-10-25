@@ -255,10 +255,31 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       );
       if (response.statusCode == 200) {
-        final List<dynamic> prods = json.decode(response.body);
+        final List<dynamic> prodsRaw = json.decode(response.body);
+
+        // --- FILTRO DE IMAGEM E ESTOQUE APLICADO AQUI ---
+        final List<dynamic> prodsFiltrados = prodsRaw.where((prod) {
+          // 1. Filtro de imagem temporária
+          final String imgUrl = prod['imagem_url']?.toString().toLowerCase() ?? '';
+          if (imgUrl.contains('seu-storage.com.br') || imgUrl.contains('seustorage')) {
+            return false;
+          }
+
+          // 2. Filtro de estoque zerado ou negativo
+          final dynamic rawEstoque = prod['estoque'] ?? prod['qtd_estoque'] ?? prod['quantidade_estoque'];
+          if (rawEstoque != null) {
+            final double? estoqueNum = double.tryParse(rawEstoque.toString().replaceAll(',', '.'));
+            if (estoqueNum != null && estoqueNum <= 0) {
+              return false;
+            }
+          }
+
+          return true; // Produto válido!
+        }).toList();
+
         if (mounted) {
           setState(() {
-            _produtosBackend = prods;
+            _produtosBackend = prodsFiltrados; // 👈 Atualizamos apenas com produtos válidos
           });
         }
       }
@@ -681,7 +702,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   });
                                 },
                               ),
-                              if (_carrinho.isNotEmpty)
+                              // 👇 NOVA REGRA PARA EXIBIR O BADGE
+                              if (_carrinho.values.fold(0, (sum, element) => sum + element) > 0)
                                 Positioned(
                                   right: 9,
                                   top: 5,
@@ -696,7 +718,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       minHeight: 16,
                                     ),
                                     child: Text(
-                                      '${_carrinho.length}',
+                                      // Mostra a quantidade de "produtos diferentes" que realmente têm mais de 0 unidades/gramas
+                                      '${_carrinho.entries.where((e) => e.value > 0).length}',
                                       style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
                                       textAlign: TextAlign.center,
                                     ),
@@ -1112,7 +1135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     : ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: _departamentosBackend.length * 1000, // 👈 Correção de sintaxe
+                  itemCount: _departamentosBackend.length * 1000,
                   itemBuilder: (context, index) {
                     final realIndex = index % _departamentosBackend.length;
                     final cat = _departamentosBackend[realIndex];
@@ -1289,7 +1312,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 0.50,
+                    childAspectRatio: 0.49,
                   ),
                   itemCount: produtosSecao.length,
                   itemBuilder: (context, index) {
@@ -1459,7 +1482,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 0.50,
+                      childAspectRatio: 0.49,
                     ),
                     itemCount: produtosSecao.length,
                     itemBuilder: (context, index) {

@@ -63,7 +63,12 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
   bool _precisaTroco = false;
   final TextEditingController _trocoController = TextEditingController();
 
-  final List<String> _titulosEtapas = ['Carrinho', 'Dados', 'Entrega', 'Pagamento'];
+  final List<String> _titulosEtapas = [
+    'Carrinho',
+    'Dados',
+    'Entrega',
+    'Pagamento',
+  ];
 
   @override
   void initState() {
@@ -87,8 +92,10 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         if (_clienteNome.isEmpty || _clienteNome == 'Cliente') {
           _clienteNome = sessao['clienteNome'] ?? widget.clienteNome;
         }
-        _clienteEmail = sessao['email'] ?? sessao['clienteEmail'] ?? 'Não informado';
-        _clienteTelefone = sessao['telefone'] ?? sessao['clienteTelefone'] ?? 'Não informado';
+        _clienteEmail =
+            sessao['email'] ?? sessao['clienteEmail'] ?? 'Não informado';
+        _clienteTelefone =
+            sessao['telefone'] ?? sessao['clienteTelefone'] ?? 'Não informado';
         _clienteCpf = sessao['cpf'] ?? sessao['cpfCliente'] ?? '';
       });
     }
@@ -109,7 +116,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       if (response.statusCode == 200 && mounted) {
         List clientes = jsonDecode(response.body);
         var clienteLogado = clientes.firstWhere(
-              (c) => c['id'].toString() == _clienteIdEfetivo.toString(),
+          (c) => c['id'].toString() == _clienteIdEfetivo.toString(),
           orElse: () => null,
         );
 
@@ -139,7 +146,8 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     setState(() => _carregandoFrete = true);
 
     try {
-      String url = '${widget.baseUrl}/api/frete/calcular?subtotal=$_subtotalComDesconto';
+      String url =
+          '${widget.baseUrl}/api/frete/calcular?subtotal=$_subtotalComDesconto';
       if (_enderecoSelecionadoId != null) {
         url += '&endereco_id=$_enderecoSelecionadoId';
       }
@@ -155,7 +163,8 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       if (response.statusCode == 200 && mounted) {
         final dados = json.decode(response.body);
         setState(() {
-          _valorFreteCalculado = (dados['valor_frete'] ?? dados['frete'] ?? 8.00).toDouble();
+          _valorFreteCalculado =
+              (dados['valor_frete'] ?? dados['frete'] ?? 8.00).toDouble();
         });
       } else {
         setState(() => _valorFreteCalculado = 8.00);
@@ -176,36 +185,55 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
   void _avancarEtapa() {
     if (widget.carrinho.isEmpty && _etapaAtual == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Seu carrinho está vazio!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Seu carrinho está vazio!')));
       return;
     }
 
     if (_etapaAtual == 0) {
       if (_opcaoSubstituicao == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Por favor, selecione o que fazer com itens indisponíveis.'), backgroundColor: Colors.orange),
+          const SnackBar(
+            content: Text(
+              'Por favor, selecione o que fazer com itens indisponíveis.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
         );
         return;
       }
       if (_desejaCpfNota == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Por favor, informe se deseja CPF na nota.'), backgroundColor: Colors.orange),
+          const SnackBar(
+            content: Text('Por favor, informe se deseja CPF na nota.'),
+            backgroundColor: Colors.orange,
+          ),
         );
         return;
       }
       if (_desejaCpfNota == 'sim' && (_clienteCpf.trim().isEmpty)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('CPF não cadastrado. Altere para "Não" na nota ou cadastre seu CPF.'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text(
+              'CPF não cadastrado. Altere para "Não" na nota ou cadastre seu CPF.',
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
     }
 
-    if (_etapaAtual == 2 && _tipoEntrega == 'delivery' && (_enderecoSelecionadoId == null || _enderecoEntrega == 'Endereço não selecionado')) {
+    if (_etapaAtual == 2 &&
+        _tipoEntrega == 'delivery' &&
+        (_enderecoSelecionadoId == null ||
+            _enderecoEntrega == 'Endereço não selecionado')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, selecione um endereço de entrega.'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Por favor, selecione um endereço de entrega.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -241,10 +269,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_tokenEfetivo',
         },
-        body: jsonEncode({
-          'codigo': codigo,
-          'subtotal': _subtotalComDesconto,
-        }),
+        body: jsonEncode({'codigo': codigo, 'subtotal': _subtotalComDesconto}),
       );
 
       if (response.statusCode == 200) {
@@ -255,21 +280,30 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(dados['mensagem'] ?? 'Cupom aplicado com sucesso!'), backgroundColor: Colors.green),
+            SnackBar(
+              content: Text(dados['mensagem'] ?? 'Cupom aplicado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } else {
         final erro = jsonDecode(response.body);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(erro['detail'] ?? 'Cupom inválido.'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(erro['detail'] ?? 'Cupom inválido.'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro de conexão ao validar cupom: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Erro de conexão ao validar cupom: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -283,9 +317,15 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     widget.carrinho.forEach((prodId, qtdOrGramas) {
       final prod = _encontrarProdutoGlobal(prodId);
       if (prod != null) {
-        final double precoNormal = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
+        final double precoNormal =
+            double.tryParse(
+              prod['preco']?.toString().replaceAll(',', '.') ?? '',
+            ) ??
+            0.0;
         final bool pesavel = _eVariavelPorPeso(prod);
-        double fator = pesavel ? (qtdOrGramas / 1000.0) : qtdOrGramas.toDouble();
+        double fator = pesavel
+            ? (qtdOrGramas / 1000.0)
+            : qtdOrGramas.toDouble();
         subtotal += precoNormal * fator;
       }
     });
@@ -297,13 +337,22 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     widget.carrinho.forEach((prodId, qtdOrGramas) {
       final prod = _encontrarProdutoGlobal(prodId);
       if (prod != null) {
-        final double precoNormal = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
+        final double precoNormal =
+            double.tryParse(
+              prod['preco']?.toString().replaceAll(',', '.') ?? '',
+            ) ??
+            0.0;
         final dynamic precoClubeRaw = prod['preco_clube'];
-        final double precoClube = precoClubeRaw != null ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0) : 0.0;
+        final double precoClube = precoClubeRaw != null
+            ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ??
+                  0.0)
+            : 0.0;
 
         if (precoClube > 0 && precoClube < precoNormal) {
           final bool pesavel = _eVariavelPorPeso(prod);
-          double fator = pesavel ? (qtdOrGramas / 1000.0) : qtdOrGramas.toDouble();
+          double fator = pesavel
+              ? (qtdOrGramas / 1000.0)
+              : qtdOrGramas.toDouble();
           economia += (precoNormal - precoClube) * fator;
         }
       }
@@ -313,20 +362,27 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
   double get _subtotalComDesconto => _subtotalSemDesconto - _totalEconomiaClube;
 
-  double get _valorTaxaEntrega => _tipoEntrega == 'delivery' ? _valorFreteCalculado : 0.0;
+  double get _valorTaxaEntrega =>
+      _tipoEntrega == 'delivery' ? _valorFreteCalculado : 0.0;
 
   double get _valorTotalFinal {
-    double total = _subtotalComDesconto - _valorDescontoCupom + _valorTaxaEntrega;
+    double total =
+        _subtotalComDesconto - _valorDescontoCupom + _valorTaxaEntrega;
     return total < 0 ? 0.0 : total;
   }
 
   Map<String, dynamic>? _encontrarProdutoGlobal(int id) {
     try {
       return widget.produtosListaGlobal.firstWhere((p) {
-        if (p is! Map) return false;
-        final pid = int.tryParse(p['id']?.toString() ?? p['codigo']?.toString() ?? '') ?? -1;
-        return pid == id;
-      }) as Map<String, dynamic>?;
+            if (p is! Map) return false;
+            final pid =
+                int.tryParse(
+                  p['id']?.toString() ?? p['codigo']?.toString() ?? '',
+                ) ??
+                -1;
+            return pid == id;
+          })
+          as Map<String, dynamic>?;
     } catch (_) {
       return null;
     }
@@ -334,11 +390,38 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
   bool _eVariavelPorPeso(Map<String, dynamic> prod) {
     final String nome = (prod['nome'] ?? '').toString().toLowerCase();
-    final String un = (prod['unidade'] ?? prod['unidade_medida'] ?? '').toString().trim().toLowerCase();
-    final dynamic varPeso = prod['variavel_por_peso'] ?? prod['peso_variavel'] ?? prod['fracionado'] ?? prod['pesavel'];
-    if (varPeso == true || varPeso == 1 || varPeso.toString().toLowerCase() == 'true') return true;
-    if (['kg', 'quilo', 'quilos', 'g', 'gramas'].contains(un) || un.startsWith('kg')) return true;
-    return nome.contains('patinho') || nome.contains('alcatra') || nome.contains('carne') || nome.contains('frango') || nome.contains('queijo');
+    final String un = (prod['unidade'] ?? prod['unidade_medida'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    final dynamic varPeso =
+        prod['variavel_por_peso'] ??
+        prod['peso_variavel'] ??
+        prod['fracionado'] ??
+        prod['pesavel'];
+    if (varPeso == true ||
+        varPeso == 1 ||
+        varPeso.toString().toLowerCase() == 'true')
+      return true;
+    if (['kg', 'quilo', 'quilos', 'g', 'gramas'].contains(un) ||
+        un.startsWith('kg'))
+      return true;
+    return nome.contains('patinho') ||
+        nome.contains('alcatra') ||
+        nome.contains('carne') ||
+        nome.contains('frango') ||
+        nome.contains('queijo');
+  }
+
+  // ⚖️ Verifica se há pelo menos um item vendido por peso no resumo do checkout
+  bool get _temItemVariavelPorPeso {
+    for (var prodId in widget.carrinho.keys) {
+      final prod = _encontrarProdutoGlobal(prodId);
+      if (prod != null && _eVariavelPorPeso(prod)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @override
@@ -374,16 +457,26 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
-                            color: concluido || selecionado ? AppColors.primaria : Colors.grey.shade300,
+                            color: concluido || selecionado
+                                ? AppColors.primaria
+                                : Colors.grey.shade300,
                             shape: BoxShape.circle,
                           ),
                           child: Center(
                             child: concluido
-                                ? const Icon(Icons.check, color: Colors.white, size: 16)
+                                ? const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 16,
+                                  )
                                 : Text(
-                              '${index + 1}',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
+                                    '${index + 1}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -391,8 +484,12 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                           _titulosEtapas[index],
                           style: TextStyle(
                             fontSize: 10,
-                            fontWeight: selecionado ? FontWeight.bold : FontWeight.normal,
-                            color: selecionado ? AppColors.primaria : Colors.grey,
+                            fontWeight: selecionado
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: selecionado
+                                ? AppColors.primaria
+                                : Colors.grey,
                           ),
                         ),
                       ],
@@ -401,8 +498,13 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                       Container(
                         width: 24,
                         height: 2,
-                        color: _etapaAtual > index ? AppColors.primaria : Colors.grey.shade300,
-                        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                        color: _etapaAtual > index
+                            ? AppColors.primaria
+                            : Colors.grey.shade300,
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 10,
+                        ),
                       ),
                   ],
                 );
@@ -433,14 +535,30 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey),
+            const Icon(
+              Icons.shopping_cart_outlined,
+              size: 64,
+              color: Colors.grey,
+            ),
             const SizedBox(height: 12),
-            const Text('Seu carrinho está vazio', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)),
+            const Text(
+              'Seu carrinho está vazio',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaria),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaria,
+              ),
               onPressed: () => Navigator.pop(context),
-              child: const Text('Voltar às compras', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Voltar às compras',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -452,26 +570,45 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       children: [
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('1. Substituir itens indisponíveis? *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
+                const Text(
+                  '1. Substituir itens indisponíveis? *',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                const Text('Selecione uma opção para continuar.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                const Text(
+                  'Selecione uma opção para continuar.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                ),
                 const SizedBox(height: 8),
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Reembolso do valor', style: TextStyle(fontSize: 12)),
+                  title: const Text(
+                    'Reembolso do valor',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   value: 'reembolso',
                   groupValue: _opcaoSubstituicao,
                   onChanged: (val) => setState(() => _opcaoSubstituicao = val),
                 ),
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Substituir por produto similar', style: TextStyle(fontSize: 12)),
+                  title: const Text(
+                    'Substituir por produto similar',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   value: 'similar',
                   groupValue: _opcaoSubstituicao,
                   onChanged: (val) => setState(() => _opcaoSubstituicao = val),
@@ -483,13 +620,19 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         const SizedBox(height: 12),
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('2. Lista de produtos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const Text(
+                  '2. Lista de produtos',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
                 const SizedBox(height: 8),
                 ListView.separated(
                   shrinkWrap: true,
@@ -506,13 +649,26 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
                     final String nome = prod['nome'] ?? 'Produto';
                     final String? imgUrl = prod['imagem_url'];
-                    final double precoNormal = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
+                    final double precoNormal =
+                        double.tryParse(
+                          prod['preco']?.toString().replaceAll(',', '.') ?? '',
+                        ) ??
+                        0.0;
                     final dynamic precoClubeRaw = prod['preco_clube'];
-                    final double precoClube = precoClubeRaw != null ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0) : 0.0;
-                    final double precoEfetivo = (precoClube > 0) ? precoClube : precoNormal;
+                    final double precoClube = precoClubeRaw != null
+                        ? (double.tryParse(
+                                precoClubeRaw.toString().replaceAll(',', '.'),
+                              ) ??
+                              0.0)
+                        : 0.0;
+                    final double precoEfetivo = (precoClube > 0)
+                        ? precoClube
+                        : precoNormal;
 
                     final bool pesavel = _eVariavelPorPeso(prod);
-                    double totalItem = pesavel ? precoEfetivo * (qtdOrGramas / 1000.0) : precoEfetivo * qtdOrGramas;
+                    double totalItem = pesavel
+                        ? precoEfetivo * (qtdOrGramas / 1000.0)
+                        : precoEfetivo * qtdOrGramas;
 
                     return Row(
                       children: [
@@ -522,16 +678,33 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                           padding: const EdgeInsets.all(2),
                           child: imgUrl != null && imgUrl.startsWith('http')
                               ? Image.network(imgUrl, fit: BoxFit.contain)
-                              : const Icon(Icons.shopping_bag, color: Colors.grey),
+                              : const Icon(
+                                  Icons.shopping_bag,
+                                  color: Colors.grey,
+                                ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(nome, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+                              Text(
+                                nome,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               const SizedBox(height: 2),
-                              Text('R\$ ${precoEfetivo.toStringAsFixed(2).replaceAll('.', ',')}${pesavel ? '/kg' : ''}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text(
+                                'R\$ ${precoEfetivo.toStringAsFixed(2).replaceAll('.', ',')}${pesavel ? '/kg' : ''}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -540,7 +713,11 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                           children: [
                             Text(
                               'R\$ ${totalItem.toStringAsFixed(2).replaceAll('.', ',')}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaria),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaria,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Row(
@@ -550,13 +727,15 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                     setState(() {
                                       if (pesavel) {
                                         if (qtdOrGramas > 250) {
-                                          widget.carrinho[prodId] = qtdOrGramas - 250;
+                                          widget.carrinho[prodId] =
+                                              qtdOrGramas - 250;
                                         } else {
                                           widget.carrinho.remove(prodId);
                                         }
                                       } else {
                                         if (qtdOrGramas > 1) {
-                                          widget.carrinho[prodId] = qtdOrGramas - 1;
+                                          widget.carrinho[prodId] =
+                                              qtdOrGramas - 1;
                                         } else {
                                           widget.carrinho.remove(prodId);
                                         }
@@ -565,37 +744,62 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                     child: const Icon(Icons.remove, size: 12),
                                   ),
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
                                   child: Text(
-                                    pesavel ? '${(qtdOrGramas / 1000.0).toStringAsFixed(3).replaceAll('.', ',')}kg' : '$qtdOrGramas',
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                    pesavel
+                                        ? '${(qtdOrGramas / 1000.0).toStringAsFixed(3).replaceAll('.', ',')}kg'
+                                        : '$qtdOrGramas',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                                 InkWell(
                                   onTap: () {
                                     setState(() {
                                       if (pesavel) {
-                                        widget.carrinho[prodId] = qtdOrGramas + 250;
+                                        widget.carrinho[prodId] =
+                                            qtdOrGramas + 250;
                                       } else {
-                                        widget.carrinho[prodId] = qtdOrGramas + 1;
+                                        widget.carrinho[prodId] =
+                                            qtdOrGramas + 1;
                                       }
                                     });
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                     child: const Icon(Icons.add, size: 12),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 InkWell(
-                                  onTap: () => setState(() => widget.carrinho.remove(prodId)),
-                                  child: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
+                                  onTap: () => setState(
+                                    () => widget.carrinho.remove(prodId),
+                                  ),
+                                  child: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 16,
+                                    color: Colors.red,
+                                  ),
                                 ),
                               ],
                             ),
@@ -612,32 +816,50 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         const SizedBox(height: 12),
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('3. Deseja CPF na nota? *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
+                const Text(
+                  '3. Deseja CPF na nota? *',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
                       child: RadioListTile<String>(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Sim', style: TextStyle(fontSize: 12)),
+                        title: const Text(
+                          'Sim',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         value: 'sim',
                         groupValue: _desejaCpfNota,
-                        onChanged: (val) => setState(() => _desejaCpfNota = val),
+                        onChanged: (val) =>
+                            setState(() => _desejaCpfNota = val),
                       ),
                     ),
                     Expanded(
                       child: RadioListTile<String>(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Não', style: TextStyle(fontSize: 12)),
+                        title: const Text(
+                          'Não',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         value: 'nao',
                         groupValue: _desejaCpfNota,
-                        onChanged: (val) => setState(() => _desejaCpfNota = val),
+                        onChanged: (val) =>
+                            setState(() => _desejaCpfNota = val),
                       ),
                     ),
                   ],
@@ -649,13 +871,19 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         const SizedBox(height: 12),
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('4. Cupom e Resumo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const Text(
+                  '4. Cupom e Resumo',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -672,24 +900,55 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF15803D)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF15803D),
+                      ),
                       onPressed: _carregandoCupom ? null : _aplicarCupom,
                       child: _carregandoCupom
-                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Aplicar', style: TextStyle(color: Colors.white, fontSize: 12)),
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Aplicar',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
                     ),
                   ],
                 ),
                 if (_codigoCupomAplicado != null) ...[
                   const SizedBox(height: 6),
-                  Text('Cupom "$_codigoCupomAplicado" aplicado com sucesso!', style: const TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Cupom "$_codigoCupomAplicado" aplicado com sucesso!',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
                 const Divider(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Subtotal', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text('R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Subtotal',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    Text(
+                      'R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 if (_totalEconomiaClube > 0) ...[
@@ -697,8 +956,22 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Desconto Box Prime (Clube)', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
-                      Text('- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                      const Text(
+                        'Desconto Box Prime (Clube)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -707,8 +980,18 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Desconto Cupom', style: TextStyle(fontSize: 12, color: Colors.green)),
-                      Text('- R\$ ${_valorDescontoCupom.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                      const Text(
+                        'Desconto Cupom',
+                        style: TextStyle(fontSize: 12, color: Colors.green),
+                      ),
+                      Text(
+                        '- R\$ ${_valorDescontoCupom.toStringAsFixed(2).replaceAll('.', ',')}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -716,10 +999,20 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total Parcial', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Total Parcial',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     Text(
                       'R\$ ${_valorTotalFinal.toStringAsFixed(2).replaceAll('.', ',')}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primaria),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primaria,
+                      ),
                     ),
                   ],
                 ),
@@ -730,10 +1023,19 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaria,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     onPressed: _avancarEtapa,
-                    child: const Text('Continuar para Dados Pessoais', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    child: const Text(
+                      'Continuar para Dados Pessoais',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -746,7 +1048,9 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
   Widget _buildEtapaDadosPessoais() {
     if (_carregandoDadosCliente) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primaria));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primaria),
+      );
     }
 
     return ListView(
@@ -754,21 +1058,35 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       children: [
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Confirme seus dados cadastrais', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const Text(
+                  'Confirme seus dados cadastrais',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
                 const SizedBox(height: 12),
                 _buildInfoRow(Icons.person_outline, 'Nome', _clienteNome),
                 const Divider(height: 16),
                 _buildInfoRow(Icons.email_outlined, 'E-mail', _clienteEmail),
                 const Divider(height: 16),
-                _buildInfoRow(Icons.phone_outlined, 'Telefone', _clienteTelefone),
+                _buildInfoRow(
+                  Icons.phone_outlined,
+                  'Telefone',
+                  _clienteTelefone,
+                ),
                 const Divider(height: 16),
-                _buildInfoRow(Icons.badge_outlined, 'CPF', _clienteCpf.isNotEmpty ? _clienteCpf : 'Não informado'),
+                _buildInfoRow(
+                  Icons.badge_outlined,
+                  'CPF',
+                  _clienteCpf.isNotEmpty ? _clienteCpf : 'Não informado',
+                ),
               ],
             ),
           ),
@@ -778,10 +1096,15 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaria,
             padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
           onPressed: _avancarEtapa,
-          child: const Text('Continuar para Entrega', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          child: const Text(
+            'Continuar para Entrega',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );
@@ -795,8 +1118,18 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-            Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
           ],
         ),
       ],
@@ -809,18 +1142,30 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       children: [
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Escolha a forma de recebimento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const Text(
+                  'Escolha a forma de recebimento',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
                 const SizedBox(height: 12),
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Retirada no Box Smart (Grátis)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Retire diretamente no armário inteligente', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  title: const Text(
+                    'Retirada no Box Smart (Grátis)',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Retire diretamente no armário inteligente',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
                   value: 'retirada',
                   groupValue: _tipoEntrega,
                   onChanged: (val) {
@@ -832,8 +1177,14 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 ),
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Entrega em Domicílio (Delivery)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Receba no conforto da sua casa', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  title: const Text(
+                    'Entrega em Domicílio (Delivery)',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Receba no conforto da sua casa',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
                   value: 'delivery',
                   groupValue: _tipoEntrega,
                   onChanged: (val) {
@@ -864,9 +1215,19 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.location_on, color: Colors.redAccent, size: 20),
+                        Icon(
+                          Icons.location_on,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
                         SizedBox(width: 8),
-                        Text('Endereço de Entrega', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                        Text(
+                          'Endereço de Entrega',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                     TextButton(
@@ -882,14 +1243,21 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                           ),
                         );
 
-                        if (enderecoSelecionado != null && enderecoSelecionado is Map) {
+                        if (enderecoSelecionado != null &&
+                            enderecoSelecionado is Map) {
                           setState(() {
                             _enderecoSelecionadoId = enderecoSelecionado['id'];
-                            final String rua = enderecoSelecionado['rua'] ?? enderecoSelecionado['logradouro'] ?? '';
-                            final String numero = enderecoSelecionado['numero']?.toString() ?? '';
-                            final String bairro = enderecoSelecionado['bairro'] ?? '';
+                            final String rua =
+                                enderecoSelecionado['rua'] ??
+                                enderecoSelecionado['logradouro'] ??
+                                '';
+                            final String numero =
+                                enderecoSelecionado['numero']?.toString() ?? '';
+                            final String bairro =
+                                enderecoSelecionado['bairro'] ?? '';
                             if (rua.isNotEmpty) {
-                              _enderecoEntrega = '$rua, $numero${bairro.isNotEmpty ? " - $bairro" : ""}';
+                              _enderecoEntrega =
+                                  '$rua, $numero${bairro.isNotEmpty ? " - $bairro" : ""}';
                             } else {
                               _enderecoEntrega = 'Endereço selecionado';
                             }
@@ -897,7 +1265,13 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                           _calcularFreteBackend();
                         }
                       },
-                      child: const Text('Selecionar / Trocar', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Selecionar / Trocar',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -906,8 +1280,12 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   _enderecoEntrega,
                   style: TextStyle(
                     fontSize: 13,
-                    color: _enderecoEntrega == 'Endereço não selecionado' ? Colors.red.shade700 : Colors.black87,
-                    fontWeight: _enderecoEntrega == 'Endereço não selecionado' ? FontWeight.bold : FontWeight.normal,
+                    color: _enderecoEntrega == 'Endereço não selecionado'
+                        ? Colors.red.shade700
+                        : Colors.black87,
+                    fontWeight: _enderecoEntrega == 'Endereço não selecionado'
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
                 if (_carregandoFrete) ...[
@@ -921,19 +1299,38 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         const SizedBox(height: 12),
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Resumo da Compra e Frete', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
+                const Text(
+                  'Resumo da Compra e Frete',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
                 const Divider(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Subtotal', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text('R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Subtotal',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    Text(
+                      'R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 if (_totalEconomiaClube > 0) ...[
@@ -941,8 +1338,22 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Desconto Box Prime (Clube)', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
-                      Text('- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                      const Text(
+                        'Desconto Box Prime (Clube)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -951,8 +1362,18 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Desconto Cupom', style: TextStyle(fontSize: 12, color: Colors.green)),
-                      Text('- R\$ ${_valorDescontoCupom.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                      const Text(
+                        'Desconto Cupom',
+                        style: TextStyle(fontSize: 12, color: Colors.green),
+                      ),
+                      Text(
+                        '- R\$ ${_valorDescontoCupom.toStringAsFixed(2).replaceAll('.', ',')}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -960,18 +1381,39 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Taxa de Entrega (${_tipoEntrega == 'delivery' ? 'Delivery' : 'Retirada'})', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text(_valorTaxaEntrega == 0 ? 'GRÁTIS' : 'R\$ ${_valorTaxaEntrega.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Taxa de Entrega (${_tipoEntrega == 'delivery' ? 'Delivery' : 'Retirada'})',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    Text(
+                      _valorTaxaEntrega == 0
+                          ? 'GRÁTIS'
+                          : 'R\$ ${_valorTaxaEntrega.toStringAsFixed(2).replaceAll('.', ',')}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 const Divider(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total com Frete', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Total com Frete',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     Text(
                       'R\$ ${_valorTotalFinal.toStringAsFixed(2).replaceAll('.', ',')}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primaria),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primaria,
+                      ),
                     ),
                   ],
                 ),
@@ -984,10 +1426,15 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaria,
             padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
           onPressed: _avancarEtapa,
-          child: const Text('Continuar para Pagamento', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          child: const Text(
+            'Continuar para Pagamento',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );
@@ -1000,21 +1447,36 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       children: [
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Resumo Detalhado do Pedido', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const Text(
+                  'Resumo Detalhado do Pedido',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
                 const Divider(height: 20),
 
                 // Subtotal
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Subtotal dos Itens', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text('R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Subtotal dos Itens',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    Text(
+                      'R\$ ${_subtotalSemDesconto.toStringAsFixed(2).replaceAll('.', ',')}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
 
@@ -1024,8 +1486,22 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Desconto Box Prime (Clube)', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
-                      Text('- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                      const Text(
+                        'Desconto Box Prime (Clube)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '- R\$ ${_totalEconomiaClube.toStringAsFixed(2).replaceAll('.', ',')}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -1036,8 +1512,21 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Desconto (Cupom: ${_codigoCupomAplicado ?? ""})', style: const TextStyle(fontSize: 12, color: Colors.green)),
-                      Text('- R\$ ${_valorDescontoCupom.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                      Text(
+                        'Desconto (Cupom: ${_codigoCupomAplicado ?? ""})',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.green,
+                        ),
+                      ),
+                      Text(
+                        '- R\$ ${_valorDescontoCupom.toStringAsFixed(2).replaceAll('.', ',')}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -1048,8 +1537,19 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Taxa de Entrega (${_tipoEntrega == 'delivery' ? 'Delivery' : 'Retirada'})', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text(_valorTaxaEntrega == 0 ? 'GRÁTIS' : 'R\$ ${_valorTaxaEntrega.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Taxa de Entrega (${_tipoEntrega == 'delivery' ? 'Delivery' : 'Retirada'})',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    Text(
+                      _valorTaxaEntrega == 0
+                          ? 'GRÁTIS'
+                          : 'R\$ ${_valorTaxaEntrega.toStringAsFixed(2).replaceAll('.', ',')}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
 
@@ -1059,10 +1559,20 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total a Pagar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Total a Pagar',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     Text(
                       'R\$ ${_valorTotalFinal.toStringAsFixed(2).replaceAll('.', ',')}',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaria),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primaria,
+                      ),
                     ),
                   ],
                 ),
@@ -1070,21 +1580,67 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
             ),
           ),
         ),
+
+        // ⚖️ AVISO DE PESO VARIÁVEL (Injetado antes da finalização)
+        if (_temItemVariavelPorPeso)
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.amber.shade300),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.scale_outlined,
+                  color: Colors.amber.shade900,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Atenção: Seu pedido contém produtos de peso variável. O valor total é uma estimativa e será ajustado exatamente após a pesagem no balcão da loja.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.amber.shade900,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         const SizedBox(height: 12),
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Forma de Pagamento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const Text(
+                  'Forma de Pagamento',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
                 const SizedBox(height: 12),
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
-                  secondary: const Icon(Icons.qr_code_rounded, color: Colors.teal),
-                  title: const Text('PIX (Aprovação imediata)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  secondary: const Icon(
+                    Icons.qr_code_rounded,
+                    color: Colors.teal,
+                  ),
+                  title: const Text(
+                    'PIX (Aprovação imediata)',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
                   value: 'pix',
                   groupValue: _formaPagamento,
                   onChanged: (val) => setState(() {
@@ -1094,8 +1650,14 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 ),
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
-                  secondary: const Icon(Icons.credit_card_rounded, color: Colors.blue),
-                  title: const Text('Cartão de Crédito / Débito', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  secondary: const Icon(
+                    Icons.credit_card_rounded,
+                    color: Colors.blue,
+                  ),
+                  title: const Text(
+                    'Cartão de Crédito / Débito',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
                   value: 'cartao_credito',
                   groupValue: _formaPagamento,
                   onChanged: (val) => setState(() {
@@ -1105,21 +1667,34 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 ),
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
-                  secondary: const Icon(Icons.money_rounded, color: Colors.green),
-                  title: const Text('Dinheiro na Retirada/Entrega', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  value: 'dinheiro',
+                  secondary: const Icon(
+                    Icons.money_rounded,
+                    color: Colors.green,
+                  ),
+                  title: const Text(
+                    'Dinheiro na Retirada/Entrega',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  value: 'Dinheiro',
                   groupValue: _formaPagamento,
                   onChanged: (val) => setState(() => _formaPagamento = val!),
                 ),
-                if (_formaPagamento == 'dinheiro') ...[
+                if (_formaPagamento == 'Dinheiro') ...[
                   const Divider(height: 20),
                   Row(
                     children: [
                       Checkbox(
                         value: _precisaTroco,
-                        onChanged: (val) => setState(() => _precisaTroco = val ?? false),
+                        onChanged: (val) =>
+                            setState(() => _precisaTroco = val ?? false),
                       ),
-                      const Text('Precisa de troco?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Precisa de troco?',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                   if (_precisaTroco)
@@ -1127,7 +1702,9 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                       padding: const EdgeInsets.only(left: 12, top: 8),
                       child: TextField(
                         controller: _trocoController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         decoration: const InputDecoration(
                           labelText: 'Troco para quanto? (Ex: 100,00)',
                           prefixText: 'R\$ ',
@@ -1147,15 +1724,25 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF15803D),
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
           onPressed: _processarFinalizacaoPedido,
-          child: const Text('Finalizar Pedido Agora', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+          child: const Text(
+            'Finalizar Pedido Agora',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
         ),
       ],
     );
   }
 
+  // 🚀 Envio do Pedido com Recibo Detalhado e Opções de Navegação
   // 🚀 Envio do Pedido com Recibo Detalhado e Opções de Navegação
   Future<void> _processarFinalizacaoPedido() async {
     showDialog(
@@ -1166,15 +1753,26 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
     try {
       List<Map<String, dynamic>> itensPayload = [];
+
+      // Monta os itens enviando o preço efetivo que o cliente está vendo na tela
       widget.carrinho.forEach((prodId, qtdOrGramas) {
         final prod = _encontrarProdutoGlobal(prodId);
-        final bool pesavel = prod != null && _eVariavelPorPeso(prod);
-        double quantidadeFinal = pesavel ? (qtdOrGramas / 1000.0) : qtdOrGramas.toDouble();
+        if (prod != null) {
+          final bool pesavel = _eVariavelPorPeso(prod);
+          double quantidadeFinal = pesavel ? (qtdOrGramas / 1000.0) : qtdOrGramas.toDouble();
 
-        itensPayload.add({
-          'produto_id': prodId,
-          'quantidade': quantidadeFinal,
-        });
+          // Captura o preço exato que o cliente deve pagar (incluindo o desconto do clube)
+          final double precoNormal = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
+          final dynamic precoClubeRaw = prod['preco_clube'];
+          final double precoClube = precoClubeRaw != null ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0) : 0.0;
+          final double precoEfetivo = (precoClube > 0 && precoClube < precoNormal) ? precoClube : precoNormal;
+
+          itensPayload.add({
+            'produto_id': prodId,
+            'quantidade': quantidadeFinal,
+            'preco_unitario': precoEfetivo, // 👈 ENVIAR PREÇO COM DESCONTO PARA O BACKEND NÃO RECALCULAR ERRADO
+          });
+        }
       });
 
       double valorTrocoPara = 0.0;
@@ -1184,25 +1782,30 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
       String enderecoFinal = _tipoEntrega == 'delivery' ? _enderecoEntrega : 'Retirada no Box Smart';
 
+      final payload = {
+        'cliente_id': _clienteIdEfetivo,
+        'itens': itensPayload,
+        'opcao_substituicao': _opcaoSubstituicao,
+        'deseja_cpf_nota': _desejaCpfNota == 'sim',
+        'tipo_entrega': _tipoEntrega,
+        'endereco_entrega': enderecoFinal,
+        'forma_pagamento': _formaPagamento,
+        'troco_para': valorTrocoPara,
+        'cupom_codigo': _codigoCupomAplicado,
+        'valor_desconto_cupom': _valorDescontoCupom,
+        'valor_subtotal': _subtotalSemDesconto,      // 👈 ENVIAR O SUBTOTAL REAL
+        'desconto_clube': _totalEconomiaClube,       // 👈 ENVIAR A ECONOMIA DO CLUBE
+        'taxa_entrega': _valorTaxaEntrega,           // 👈 ENVIAR O VALOR DO FRETE CALCULADO (E NÃO O PADRÃO)
+        'valor_total': _valorTotalFinal,             // 👈 ENVIAR O VALOR TOTAL FINAL DA TELA
+      };
+
       final response = await http.post(
-        Uri.parse('${widget.baseUrl}/pedidos'),
+        Uri.parse('${widget.baseUrl}/pedidos'), // Verifica se no seu backend é /pedidos ou /pedidos/
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_tokenEfetivo',
         },
-        body: jsonEncode({
-          'cliente_id': _clienteIdEfetivo,
-          'itens': itensPayload,
-          'opcao_substituicao': _opcaoSubstituicao,
-          'deseja_cpf_nota': _desejaCpfNota == 'sim',
-          'tipo_entrega': _tipoEntrega,
-          'endereco_entrega': enderecoFinal,
-          'forma_pagamento': _formaPagamento,
-          'troco_para': valorTrocoPara,
-          'cupom_codigo': _codigoCupomAplicado,
-          'valor_desconto_cupom': _valorDescontoCupom,
-          'valor_total': _valorTotalFinal,
-        }),
+        body: jsonEncode(payload),
       );
 
       if (mounted) Navigator.pop(context); // Fecha o loading
@@ -1210,6 +1813,9 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final respostaData = json.decode(response.body);
         final int pedidoId = respostaData['id'] ?? respostaData['pedido_id'] ?? 1001;
+
+        // Salvar os totais finais ANTES de limpar o carrinho para poder exibir no recibo
+        final double reciboTotal = _valorTotalFinal;
 
         // Limpa o carrinho após o sucesso
         setState(() => widget.carrinho.clear());
@@ -1244,8 +1850,8 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                     ),
                     const Divider(height: 20),
 
-                    // Detalhes do Recibo
-                    _buildReciboLinha('Valor Total:', 'R\$ ${_valorTotalFinal.toStringAsFixed(2).replaceAll('.', ',')}', destaque: true),
+                    // Detalhes do Recibo (Agora usando o reciboTotal que foi salvo antes da limpeza)
+                    _buildReciboLinha('Valor Total:', 'R\$ ${reciboTotal.toStringAsFixed(2).replaceAll('.', ',')}', destaque: true), // 👈 CORREÇÃO DO BUG DO RECIBO
                     const SizedBox(height: 6),
                     _buildReciboLinha('Pagamento:', _formatarNomePagamento(_formaPagamento)),
                     const SizedBox(height: 6),
@@ -1260,31 +1866,42 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Botão 1: Ir para Acompanhamento
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaria,
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                       onPressed: () {
-                        Navigator.pop(ctx); // Fecha o diálogo
-                        Navigator.of(context).popUntil((route) => route.isFirst); // Volta pra home e limpa pilha
-                        // Opcional: Se tiver tela de histórico/acompanhamento, você pode navegar para ela aqui.
+                        // 1. Volta para a Home
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+
+                        // 2. Empurra a tela de Perfil por cima
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProfileScreen(
+                              clienteId: _clienteIdEfetivo,
+                              token: widget.token,
+                            ),
+                          ),
+                        );
                       },
                       child: const Text('Acompanhar Pedido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(height: 8),
-                    // Botão 2: Voltar para a Tela Principal
                     OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         side: BorderSide(color: Colors.grey.shade400),
                       ),
                       onPressed: () {
-                        Navigator.pop(ctx); // Fecha o diálogo
-                        Navigator.of(context).popUntil((route) => route.isFirst); // Retorna à tela principal
+                        Navigator.of(context).popUntil((route) => route.isFirst);
                       },
                       child: const Text('Voltar à Tela Principal', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
                     ),
@@ -1314,15 +1931,23 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
   // Auxiliar para formatar o nome da forma de pagamento no recibo
   String _formatarNomePagamento(String codigo) {
     switch (codigo) {
-      case 'pix': return 'PIX (Aprovação Imediata)';
-      case 'cartao_credito': return 'Cartão de Crédito / Débito';
-      case 'dinheiro': return 'Dinheiro na Entrega/Retirada';
-      default: return codigo;
+      case 'pix':
+        return 'PIX (Aprovação Imediata)';
+      case 'cartao_credito':
+        return 'Cartão de Crédito / Débito';
+      case 'dinheiro':
+        return 'Dinheiro na Entrega/Retirada';
+      default:
+        return codigo;
     }
   }
 
   // Auxiliar visual para as linhas do recibo
-  Widget _buildReciboLinha(String rotulo, String valor, {bool destaque = false}) {
+  Widget _buildReciboLinha(
+    String rotulo,
+    String valor, {
+    bool destaque = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
