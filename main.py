@@ -3197,6 +3197,43 @@ def redefinir_senha(dados: RedefinirSenhaRequest, db: Session = Depends(get_db))
 # Certifique-se de que 'app' é a sua instância principal (app = FastAPI())
 app.include_router(router)
 
+
+import asyncio
+import urllib.request
+from fastapi import FastAPI
+
+# ... seus imports atuais ...
+
+app = FastAPI() # Sua declaração principal
+
+# 👇 1. Crie uma rota simples só para o ping bater e voltar rápido
+@app.get("/api/ping")
+def ping_server():
+    return {"status": "ok", "mensagem": "Servidor rodando liso!"}
+
+# 👇 2. Crie a função que roda em segundo plano a cada 14 minutos
+async def manter_acordado():
+    # Substitua pela sua URL exata do Render
+    url = "https://box-smart-backend.onrender.com/api/ping" 
+    
+    while True:
+        # Pausa de 14 minutos (840 segundos) para não sobrecarregar
+        await asyncio.sleep(840) 
+        try:
+            # Faz uma requisição rápida para a própria URL pública
+            urllib.request.urlopen(url)
+            print("⏰ Auto-ping realizado com sucesso! Servidor continua acordado.")
+        except Exception as e:
+            print(f"Erro no auto-ping: {e}")
+
+# 👇 3. Aciona a função automaticamente quando o FastAPI iniciar
+@app.on_event("startup")
+async def startup_event():
+    # Cria uma tarefa em segundo plano que não trava o resto da API
+    asyncio.create_task(manter_acordado())
+
+# ... resto das suas rotas ...
+
 @app.post("/clientes/", status_code=status.HTTP_201_CREATED)
 @app.post("/clientes", status_code=status.HTTP_201_CREATED)
 def cadastrar_cliente_app(
