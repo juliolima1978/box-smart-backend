@@ -3206,7 +3206,13 @@ from fastapi import FastAPI
 
 app = FastAPI() # Sua declaração principal
 
+# 👇 1. Crie uma rota simples só para o ping bater e voltar rápido
+@app.get("/api/ping")
+def ping_server():
+    return {"status": "ok", "mensagem": "Servidor rodando liso!"}
 
+
+# ... resto das suas rotas ...
 
 @app.post("/clientes/", status_code=status.HTTP_201_CREATED)
 @app.post("/clientes", status_code=status.HTTP_201_CREATED)
