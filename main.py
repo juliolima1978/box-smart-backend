@@ -8,10 +8,10 @@ from typing import List, Optional
 from datetime import date, datetime, time as time_type
 from zoneinfo import ZoneInfo
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, status, Query, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, status, Query, BackgroundTasks, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlalchemy import func, desc, text
 from sqlalchemy.orm import Session, joinedload
 from dotenv import load_dotenv
@@ -28,8 +28,11 @@ import schemas
 import crud
 import security
 import pandas as pd
+import requests
+import secrets
+from passlib.context import CryptContext
 from database import engine, get_db, SessionLocal
-from models import Pedido, Produto, ItemPedido, Categoria, Favorito, Endereco
+from models import Pedido, Produto, ItemPedido, Categoria, Favorito, Endereco, Cliente
 from treinar_recomendacao import treinar_motor_recomendacao
 from routers.frete import router as frete_router
 
@@ -187,7 +190,6 @@ def sanitizar_produto(prod: dict, postgres_categoria_id: int) -> dict:
         "destaque": bool(prod.get("destaque", False))
     }
 
-# ... (início do main.py continua igual)
 
 def salvar_produtos_no_postgres(produtos: list, db: Session) -> tuple[int, list]:
     if not produtos:
@@ -286,7 +288,6 @@ def salvar_produtos_no_postgres(produtos: list, db: Session) -> tuple[int, list]
     return contador, produtos_alterados
 
 def obter_ids_autorizados_curva_a() -> set:
-    # ... (permanece inalterada)
     caminho_csv = "curva_a/produtos_curva_a_imagens.csv"
     if not os.path.exists(caminho_csv):
         caminho_csv = "produtos_curva_a_imagens.csv"
@@ -415,6 +416,7 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     print("🛑 Schedulers finalizados.")
 
+
 app = FastAPI(
     title="Box Smart API",
     description="API oficial da plataforma de e-commerce e clube de fidelidade Box Smart",
@@ -429,7 +431,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 
 scheduler_rec = BackgroundScheduler()
@@ -524,10 +525,6 @@ def calcular_frete_backend(subtotal: float, db: Session) -> dict:
 def ler_raiz():
     return {"status": "API Box Smart Online", "integracao": "WebSac Ativa", "mensagem": "Bem-vindo à API do Box Smart! 🛒🚀"}
 
-#@app.get("/api/frete/calcular")
-#@app.get("/api/frete/calcular/")
-#def consultar_frete(subtotal: float = Query(0.0), db: Session = Depends(get_db)):
-#    return calcular_frete_backend(subtotal=subtotal, db=db)
 
 @app.get("/admin/frete/config")
 @app.get("/admin/frete/config/")
@@ -1832,46 +1829,6 @@ def vincular_cpf(dados: VincularCPFSchema, db: Session = Depends(get_db)):
 # 📂 ROTAS DE PEDIDOS (COM CÁLCULO SEGURO DE FRETE)
 # ==========================================
 
-import requests
-
-def buscar_lat_long_nominatim(rua: str, numero: str, cidade: str, estado: str, cep: str):
-    """Consulta a API do Nominatim (OpenStreetMap) para obter latitude e longitude."""
-    url = "https://nominatim.openstreetmap.org/search"
-    
-    # Monta a string de endereço formatada para busca
-    query = f"{rua}, {numero}, {cidade} - {estado}, {cep}, Brasil"
-    
-    params = {
-        'q': query,
-        'format': 'json',
-        'limit': 1
-    }
-    
-    # ⚠️ ATENÇÃO: O Nominatim exige obrigatoriamente um User-Agent personalizado nas requisições
-    headers = {
-        'User-Agent': 'BoxSmartApp/1.0 (contato@boxsmart.com)'
-    }
-    
-    try:
-        response = requests.get(url, params=params, headers=headers, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            if data and len(data) > 0:
-                lat = float(data[0]['lat'])
-                lon = float(data[0]['lon'])
-                return lat, lon
-    except Exception as e:
-        print(f"[GEOCODING ERROR] Falha ao conectar com o serviço de geocodificação: {e}")
-        
-    return None, None
-
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from database import get_db
-import models
-import schemas # Onde estão suas Pydantic models (ex: EnderecoCreate)
-
 endereco_router = APIRouter(prefix="/api/enderecos", tags=["Endereços"])
 
 
@@ -1886,7 +1843,7 @@ def buscar_lat_long_nominatim(rua: str, numero: str, cidade: str, estado: str, c
     # Lista de tentativas em ordem de precisão (da mais específica para a mais genérica)
     queries = [
         f"{rua}, {numero}, {cidade} - {estado}, {cep}, Brasil",  # 1. Endereço completo
-        f"{rua}, {cidade} - {estado}, {cep}, Brasil",           # 2. Sem o número da casa
+        f"{rua}, {cidade} - {estado}, {cep}, Brasil",            # 2. Sem o número da casa
         f"{cep}, {cidade} - {estado}, Brasil",                 # 3. Apenas por CEP e cidade
         f"{cep}, Brasil"                                       # 4. Apenas pelo CEP global
     ]
@@ -1912,9 +1869,6 @@ def buscar_lat_long_nominatim(rua: str, numero: str, cidade: str, estado: str, c
             
     return None, None
 
-
-
-from fastapi import Request
 
 @app.post("/pedidos/", status_code=status.HTTP_201_CREATED)
 @app.post("/pedidos", status_code=status.HTTP_201_CREATED)
@@ -2973,14 +2927,9 @@ def relatorio_vendas_acumuladas(
 # 📂 ROTA DO CLUBE BOX PRIME
 # ==========================================
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from database import get_db
-from models import Produto
+router_clube = APIRouter()
 
-router = APIRouter()
-
-@router.get("/api/produtos/clube")
+@router_clube.get("/api/produtos/clube")
 def listar_produtos_clube(db: Session = Depends(get_db)):
     """
     Retorna apenas os produtos que possuem preco_clube cadastrado e maior que zero.
@@ -3044,6 +2993,7 @@ def atualizar_dados_box_prime(dados: dict, db: Session = Depends(get_db)):
     db.refresh(config)
     return {"mensagem": "Configurações do Box Prime atualizadas com sucesso!"}
 
+app.include_router(router_clube)
 
 # ==========================================
 # 📂 ROTAS DE LOCALIZAÇÃO DO ENTREGADOR
@@ -3126,19 +3076,10 @@ def enviar_notificacao_churn(
 # ==========================================
 # 📂 ROTA DE CADASTRO DO APP CLIENTE
 # ==========================================
-from datetime import datetime, timedelta
-import secrets
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
-# Importe sua sessão do banco e o modelo do cliente conforme seu projeto:
-from database import get_db
-from models import Cliente 
-from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-router = APIRouter(prefix="/auth", tags=["Autenticação"])
+router_auth = APIRouter(prefix="/auth", tags=["Autenticação"])
 
 class RecuperarSenhaRequest(BaseModel):
     email: EmailStr
@@ -3148,7 +3089,7 @@ class RedefinirSenhaRequest(BaseModel):
     token: str
     nova_senha: str
 
-@router.post("/esqueci-senha")
+@router_auth.post("/esqueci-senha")
 def esqueci_senha(dados: RecuperarSenhaRequest, db: Session = Depends(get_db)):
     # 1. Buscar o cliente pelo e-mail no banco de dados
     cliente = db.query(Cliente).filter(Cliente.email == dados.email).first()
@@ -3170,7 +3111,7 @@ def esqueci_senha(dados: RecuperarSenhaRequest, db: Session = Depends(get_db)):
 
     return {"mensagem": "Código de recuperação enviado com sucesso!"}
 
-@router.post("/redefinir-senha")
+@router_auth.post("/redefinir-senha")
 def redefinir_senha(dados: RedefinirSenhaRequest, db: Session = Depends(get_db)):
     # 1. Buscar cliente pelo e-mail
     cliente = db.query(Cliente).filter(Cliente.email == dados.email).first()
@@ -3195,24 +3136,13 @@ def redefinir_senha(dados: RedefinirSenhaRequest, db: Session = Depends(get_db))
 
 # 🌟 3. REGISTRO OBRIGATÓRIO DO ROUTER NO APP PRINCIPAL
 # Certifique-se de que 'app' é a sua instância principal (app = FastAPI())
-app.include_router(router)
+app.include_router(router_auth)
 
-
-import asyncio
-import urllib.request
-from fastapi import FastAPI
-
-# ... seus imports atuais ...
-
-app = FastAPI() # Sua declaração principal
-
-# 👇 1. Crie uma rota simples só para o ping bater e voltar rápido
+# 👇 1. Rota de ping para manter o servidor acordado
 @app.get("/api/ping")
 def ping_server():
     return {"status": "ok", "mensagem": "Servidor rodando liso!"}
 
-
-# ... resto das suas rotas ...
 
 @app.post("/clientes/", status_code=status.HTTP_201_CREATED)
 @app.post("/clientes", status_code=status.HTTP_201_CREATED)
