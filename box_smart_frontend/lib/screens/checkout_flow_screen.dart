@@ -443,93 +443,96 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
           onPressed: _voltarEtapa,
         ),
       ),
-      body: Column(
-        children: [
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_titulosEtapas.length, (index) {
-                bool selecionado = _etapaAtual == index;
-                bool concluido = _etapaAtual > index;
-
-                return Row(
-                  children: [
-                    Column(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: concluido || selecionado
-                                ? AppColors.primaria
-                                : Colors.grey.shade300,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: concluido
-                                ? const Icon(
-                                    Icons.check,
-                                    color: Colors.white,
-                                    size: 16,
-                                  )
-                                : Text(
-                                    '${index + 1}',
-                                    style: const TextStyle(
+      body: SafeArea(
+        bottom: true,
+        child: Column(
+          children: [
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: List.generate(_titulosEtapas.length, (index) {
+                  bool selecionado = _etapaAtual == index;
+                  bool concluido = _etapaAtual > index;
+        
+                  return Row(
+                    children: [
+                      Column(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: concluido || selecionado
+                                  ? AppColors.primaria
+                                  : Colors.grey.shade300,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: concluido
+                                  ? const Icon(
+                                      Icons.check,
                                       color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                                      size: 16,
+                                    )
+                                  : Text(
+                                      '${index + 1}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
                                     ),
-                                  ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _titulosEtapas[index],
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: selecionado
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: selecionado
-                                ? AppColors.primaria
-                                : Colors.grey,
+                          const SizedBox(height: 4),
+                          Text(
+                            _titulosEtapas[index],
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: selecionado
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: selecionado
+                                  ? AppColors.primaria
+                                  : Colors.grey,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    if (index < _titulosEtapas.length - 1)
-                      Container(
-                        width: 24,
-                        height: 2,
-                        color: _etapaAtual > index
-                            ? AppColors.primaria
-                            : Colors.grey.shade300,
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 10,
-                        ),
+                        ],
                       ),
-                  ],
-                );
-              }),
+                      if (index < _titulosEtapas.length - 1)
+                        Container(
+                          width: 24,
+                          height: 2,
+                          color: _etapaAtual > index
+                              ? AppColors.primaria
+                              : Colors.grey.shade300,
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 10,
+                          ),
+                        ),
+                    ],
+                  );
+                }),
+              ),
             ),
-          ),
-          const Divider(height: 1),
-
-          Expanded(
-            child: IndexedStack(
-              index: _etapaAtual,
-              children: [
-                _buildEtapaCarrinhoCompleto(),
-                _buildEtapaDadosPessoais(),
-                _buildEtapaEntrega(),
-                _buildEtapaPagamento(),
-              ],
+            const Divider(height: 1),
+        
+            Expanded(
+              child: IndexedStack(
+                index: _etapaAtual,
+                children: [
+                  _buildEtapaCarrinhoCompleto(),
+                  _buildEtapaDadosPessoais(),
+                  _buildEtapaEntrega(),
+                  _buildEtapaPagamento(),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1863,6 +1866,19 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 ],
               ),
               actions: [
+                // 👇 Botão para voltar direto à Home / Início
+                TextButton(
+                  onPressed: () {
+                    // Fecha o dialog e limpa o fluxo de checkout voltando para a primeira rota (Home)
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  },
+                  child: const Text(
+                    'Voltar ao Início',
+                    style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                  ),
+                ),
+
+                // Botão existente de Acompanhar Pedido
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaria),
                   onPressed: () {

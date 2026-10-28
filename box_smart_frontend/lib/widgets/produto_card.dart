@@ -247,16 +247,21 @@ class _ProdutoCardState extends State<ProdutoCard> {
                           ),
                         ),
 
-                        // --- CORPO: Textos e Preços ---
+                        // --- CORPO: Textos e Preços (AGORA MAIORES E LEGÍVEIS) ---
                         Expanded(
-                          flex: 7, // Maior peso para o conteúdo de texto para evitar overflow
+                          flex: 7,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               Text(
                                 nomeProduto,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w400, color: Color(0xFF333333), height: 1.1),
+                                style: const TextStyle(
+                                    fontSize: 14, // 👈 Aumentado
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF333333),
+                                    height: 1.1
+                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
@@ -269,7 +274,12 @@ class _ProdutoCardState extends State<ProdutoCard> {
                               if (ehOferta) ...[
                                 Text(
                                   'R\$ ${precoNormal.toStringAsFixed(2).replaceAll('.', ',')} $unidadeDisplay',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFD32F2F), decoration: TextDecoration.lineThrough),
+                                  style: const TextStyle(
+                                      fontSize: 12, // 👈 Aumentado
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFD32F2F),
+                                      decoration: TextDecoration.lineThrough
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Stack(
@@ -278,32 +288,46 @@ class _ProdutoCardState extends State<ProdutoCard> {
                                   children: [
                                     Container(
                                       width: double.infinity,
-                                      padding: const EdgeInsets.fromLTRB(2, 8, 2, 4),
+                                      padding: const EdgeInsets.fromLTRB(2, 10, 2, 4), // 👈 Mais padding
                                       decoration: BoxDecoration(color: const Color(0xFFFBC02D), borderRadius: BorderRadius.circular(4)),
                                       child: Column(
                                         children: [
-                                          const Text('Cliente APP', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFF424242))),
-                                          Text(
-                                            'R\$ ${precoClube.toStringAsFixed(2).replaceAll('.', ',')}',
-                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF333333)),
+                                          const Text('Cliente APP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF424242))),
+                                          FittedBox( // 👈 Protege texto grande de overflow
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              'R\$ ${precoClube.toStringAsFixed(2).replaceAll('.', ',')}',
+                                              style: const TextStyle(
+                                                  fontSize: 18, // 👈 Aumentado
+                                                  fontWeight: FontWeight.w900,
+                                                  color: Color(0xFF333333)
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),
                                     ),
                                     Positioned(
-                                      top: -6,
+                                      top: -7,
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                        decoration: BoxDecoration(color: const Color(0xFF0D47A1), borderRadius: BorderRadius.circular(3)),
-                                        child: const Text('BOX PRIME', style: TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(color: const Color(0xFF0D47A1), borderRadius: BorderRadius.circular(4)),
+                                        child: const Text('BOX PRIME', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)),
                                       ),
                                     ),
                                   ],
                                 ),
                               ] else ...[
-                                Text(
-                                  'R\$ ${precoNormal.toStringAsFixed(2).replaceAll('.', ',')} $unidadeDisplay',
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                                FittedBox( // 👈 Protege texto grande de overflow
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'R\$ ${precoNormal.toStringAsFixed(2).replaceAll('.', ',')} $unidadeDisplay',
+                                    style: const TextStyle(
+                                        fontSize: 17, // 👈 Aumentado
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1E3A8A)
+                                    ),
+                                  ),
                                 ),
                               ],
 
@@ -313,42 +337,42 @@ class _ProdutoCardState extends State<ProdutoCard> {
                               semEstoque
                                   ? Container(
                                 width: double.infinity,
-                                height: 28,
+                                height: 34, // 👈 Altura Aumentada
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(4)),
-                                child: const Text('Indisponível', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54)),
+                                child: const Text('Indisponível', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54)),
                               )
                                   : _quantidadeNoCarrinho == 0
                                   ? SizedBox(
                                 width: double.infinity,
-                                height: 28,
+                                height: 34, // 👈 Altura Aumentada
                                 child: ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF00A859),
                                     elevation: 0,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                     padding: EdgeInsets.zero,
                                   ),
                                   onPressed: () {
                                     if (pesavel) _abrirModalPeso(); else _alterarQuantidade(1);
                                   },
-                                  icon: const Icon(Icons.shopping_cart_outlined, size: 12, color: Colors.white),
-                                  label: const Text('Adicionar', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
+                                  icon: const Icon(Icons.shopping_cart_outlined, size: 16, color: Colors.white),
+                                  label: const Text('Adicionar', style: TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold)),
                                 ),
                               )
                                   : Container(
-                                height: 28,
+                                height: 34, // 👈 Altura Aumentada
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: const Color(0xFF00A859), width: 1.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFF00A859), width: 1.5),
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     IconButton(
                                       padding: EdgeInsets.zero,
-                                      icon: const Icon(Icons.remove, size: 14, color: Color(0xFF00A859)),
+                                      icon: const Icon(Icons.remove, size: 18, color: Color(0xFF00A859)),
                                       onPressed: () {
                                         if (pesavel) {
                                           _alterarQuantidade(_quantidadeNoCarrinho > 250 ? _quantidadeNoCarrinho - 250 : 0);
@@ -361,16 +385,19 @@ class _ProdutoCardState extends State<ProdutoCard> {
                                       child: GestureDetector(
                                         onTap: pesavel ? _abrirModalPeso : null,
                                         child: Center(
-                                          child: Text(
-                                            pesavel ? '${(_quantidadeNoCarrinho / 1000.0).toStringAsFixed(3).replaceAll('.', ',')}kg' : '$_quantidadeNoCarrinho',
-                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              pesavel ? '${(_quantidadeNoCarrinho / 1000.0).toStringAsFixed(3).replaceAll('.', ',')}kg' : '$_quantidadeNoCarrinho',
+                                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                     IconButton(
                                       padding: EdgeInsets.zero,
-                                      icon: const Icon(Icons.add, size: 14, color: Color(0xFF00A859)),
+                                      icon: const Icon(Icons.add, size: 18, color: Color(0xFF00A859)),
                                       onPressed: () {
                                         _alterarQuantidade(pesavel ? _quantidadeNoCarrinho + 250 : _quantidadeNoCarrinho + 1);
                                       },

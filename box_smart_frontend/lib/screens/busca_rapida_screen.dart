@@ -298,10 +298,9 @@ class _BuscaRapidaScreenState extends State<BuscaRapidaScreen> {
                       InkWell(
                         borderRadius: BorderRadius.circular(8),
                         onTap: () {
-                          if (Navigator.of(context).canPop()) {
-                            Navigator.of(context).pop();
-                          } else {
-                            Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                          // 🌟 CORREÇÃO: Volta para a Home (índice 0) em vez de destruir a tela
+                          if (widget.onMudarAba != null) {
+                            widget.onMudarAba!(0);
                           }
                         },
                         child: const Padding(
@@ -684,9 +683,8 @@ class _BuscaRapidaScreenState extends State<BuscaRapidaScreen> {
                     child: Center(
                       child: GestureDetector(
                         onTap: () {
-                          if (Navigator.of(context).canPop()) {
-                            Navigator.of(context).pop();
-                          } else if (widget.onMudarAba != null) {
+                          // 🌟 CORREÇÃO: Volta para a Home (índice 0)
+                          if (widget.onMudarAba != null) {
                             widget.onMudarAba!(0);
                           }
                         },

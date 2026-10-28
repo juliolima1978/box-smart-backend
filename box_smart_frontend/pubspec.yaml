@@ -42,6 +42,8 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   google_fonts: ^6.1.0
   shared_preferences: ^2.2.2
+  flutter_launcher_icons: ^0.13.1
+  mask_text_input_formatter: ^2.9.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -75,6 +77,15 @@ flutter:
     - assets/banner_2.jpg
     - assets/banner_3.jpg
     - assets/icones/
+
+  # Adicione isso bem no final do arquivo pubspec.yaml
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logogimptesc.png"
+  remove_alpha_ios: true # 👈 Adicione esta linha para remover a transparência no iOS
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logogimptesc.png"
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -67,7 +67,7 @@ class _RedefinirSenhaScreenState extends State<RedefinirSenhaScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('${widget.baseUrl}/auth/redefinir-senha'),
+        Uri.parse('${widget.baseUrl}/esqueci-senha'), // 👈 Rota exata configurada no seu FastAPI
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'email': email,
@@ -87,12 +87,13 @@ class _RedefinirSenhaScreenState extends State<RedefinirSenhaScreen> {
           ),
         );
 
-        // Retorna para a tela de login (remove todas as telas anteriores da pilha de recuperação)
         Navigator.popUntil(context, (route) => route.isFirst);
       } else {
         final erro = json.decode(response.body);
         _mostrarErro(erro['detail'] ?? 'Erro ao redefinir senha.');
       }
+    } catch (e) {
+      _mostrarErro('Erro de conexão: $e');
     } catch (e) {
       _mostrarErro('Erro de conexão: $e');
     } finally {

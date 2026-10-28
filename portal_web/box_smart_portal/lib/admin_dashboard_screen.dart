@@ -836,11 +836,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text(
-                '⚠️️ Alerta de Risco de Churn (Membros do Clube)',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              // 👇 Envolvemos o texto com Expanded
+              Expanded(
+                child: const Text(
+                  '⚠ Alerta de Risco de Churn (Membros do Clube)',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A)
+                  ),
+                  // Adicionamos maxLines para quebrar em 2 linhas no celular se precisar
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8), // Um pequeno respiro entre o texto e o botão
+
               Chip(
                 label: Text(
                   '${_dadosChurn['total_risco_churn'] ?? 0} Inativos',

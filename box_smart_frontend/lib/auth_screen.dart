@@ -1,13 +1,13 @@
-//import 'app_colors.dart'; // Ajuste o caminho se necessário para o seu main.dart
 import 'package:box_smart_frontend/screens/esqueci_senha_screen.dart';
 import 'package:box_smart_frontend/screens/home_screen.dart';
 import 'package:box_smart_frontend/screens/painel/admin_portal_screen.dart';
 import 'package:box_smart_frontend/screens/painel/fila_pedidos_separador_screen.dart';
-import 'package:box_smart_frontend/services/session_service.dart'; // 👈 Import do SessionService
+import 'package:box_smart_frontend/services/session_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'main.dart'; // Importante para acessar a HomeScreen e AppColors
+import 'main.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -17,16 +17,16 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  bool _isLogin = true; // Controla se estamos a mostrar Login ou Cadastro
+  bool _isLogin = true;
   bool _carregando = false;
-  bool _obscurePassword = true; // Para alternar visibilidade da senha
-  final String baseUrl = "http://192.168.15.175:8000";
+  bool _obscurePassword = true;
+  final String baseUrl = "https://box-smart-backend.onrender.com";
 
   // Controladores de Login
   final _loginEmailController = TextEditingController();
   final _loginSenhaController = TextEditingController();
 
-  // Controladores de Cadastro (Adicionado _cadCpfController)
+  // Controladores de Cadastro
   final _cadNomeController = TextEditingController();
   final _cadEmailController = TextEditingController();
   final _cadSenhaController = TextEditingController();
@@ -62,46 +62,23 @@ class _AuthScreenState extends State<AuthScreen> {
       if (response.statusCode == 200) {
         final dados = jsonDecode(response.body);
         String token = dados['access_token'];
-
         String perfil = (dados['perfil'] ?? 'cliente').toString().toLowerCase();
 
         if (!mounted) return;
 
         if (perfil == 'admin' || perfil == 'gestor') {
-          // Salva sessão do admin
-          await SessionService.salvarSessao(
-            token: token,
-            clienteId: 0,
-            clienteNome: 'Administrador',
-          );
-
+          await SessionService.salvarSessao(token: token, clienteId: 0, clienteNome: 'Administrador');
           _mostrarMensagem("Login efetuado com sucesso!");
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (context) => AdminPortalScreen(
-                baseUrl: baseUrl,
-                token: token,
-              ),
-            ),
+            MaterialPageRoute(builder: (context) => AdminPortalScreen(baseUrl: baseUrl, token: token)),
           );
         } else if (perfil == 'separador') {
-          // Salva sessão do separador
-          await SessionService.salvarSessao(
-            token: token,
-            clienteId: 0,
-            clienteNome: 'Separador',
-          );
-
+          await SessionService.salvarSessao(token: token, clienteId: 0, clienteNome: 'Separador');
           _mostrarMensagem("Login efetuado com sucesso!");
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (context) => FilaPedidosSeparadorScreen(
-                baseUrl: baseUrl,
-                token: token,
-              ),
-            ),
+            MaterialPageRoute(builder: (context) => FilaPedidosSeparadorScreen(baseUrl: baseUrl, token: token)),
           );
         } else {
           final clienteResponse = await http.get(
@@ -120,16 +97,14 @@ class _AuthScreenState extends State<AuthScreen> {
             if (clienteLogado != null) {
               final int clienteId = clienteLogado['id'];
               final String clienteNome = clienteLogado['nome'] ?? 'Cliente';
-              final String? cpfCliente = clienteLogado['cpf']?.toString();
               final bool ehMembro = clienteLogado['eh_membro_clube'] == true || clienteLogado['eh_membro_clube'] == 1;
 
-              // 💾 Salva a sessão completa do cliente no dispositivo
               await SessionService.salvarSessao(
                 token: token,
                 clienteId: clienteId,
                 clienteNome: clienteLogado['nome'] ?? 'Cliente',
                 email: clienteLogado['email'] ?? '',
-                telefone: clienteLogado['telefone'] ?? '', // 👈 Adicionado aqui também!
+                telefone: clienteLogado['telefone'] ?? '',
                 cpfCliente: clienteLogado['cpf'] ?? '',
                 ehMembroClube: ehMembro,
               );
@@ -166,27 +141,54 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _fazerCadastro() async {
+    final nome = _cadNomeController.text.trim();
+    final email = _cadEmailController.text.trim();
+    final senha = _cadSenhaController.text.trim();
+    final telefone = _cadTelefoneController.text.trim();
+    final cpf = _cadCpfController.text.trim();
+
+    if (nome.isEmpty) {
+      _mostrarMensagem("Por favor, informe seu nome completo.", erro: true);
+      return;
+    }
+    if (email.isEmpty || !email.contains('@')) {
+      _mostrarMensagem("Informe um e-mail válido.", erro: true);
+      return;
+    }
+    if (senha.length < 6) {
+      _mostrarMensagem("A senha deve ter no mínimo 6 caracteres.", erro: true);
+      return;
+    }
+    if (telefone.length < 14) {
+      _mostrarMensagem("Informe um telefone válido com DDD.", erro: true);
+      return;
+    }
+    if (cpf.length < 14) {
+      _mostrarMensagem("Informe um CPF válido completo.", erro: true);
+      return;
+    }
+
     setState(() => _carregando = true);
+
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/clientes/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'nome': _cadNomeController.text.trim(),
-          'email': _cadEmailController.text.trim(),
-          'senha': _cadSenhaController.text.trim(),
-          'telefone': _cadTelefoneController.text.trim(),
-          'cpf': _cadCpfController.text.trim(), // 👈 Enviando o CPF cadastrado
+          'nome': nome,
+          'email': email,
+          'senha': senha,
+          'telefone': telefone,
+          'cpf': cpf, // 👈 Enviando o CPF formatado
         }),
       );
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         _mostrarMensagem("Cadastro realizado! Faça login para continuar.");
         _cadNomeController.clear();
         _cadEmailController.clear();
         _cadSenhaController.clear();
         _cadTelefoneController.clear();
-        _cadCpfController.clear();
         _cadCpfController.clear();
         setState(() => _isLogin = true);
       } else {
@@ -199,7 +201,9 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       _mostrarMensagem("Erro de conexão: $e", erro: true);
     } finally {
-      setState(() => _carregando = false);
+      if (mounted) {
+        setState(() => _carregando = false);
+      }
     }
   }
 
@@ -214,7 +218,6 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // --- LOGOTIPO & CABEÇALHO ---
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -236,27 +239,15 @@ class _AuthScreenState extends State<AuthScreen> {
                 const SizedBox(height: 24),
                 Text(
                   _isLogin ? 'Seja Bem-vindo!' : 'Crie sua conta',
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black87,
-                  ),
+                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.black87),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _isLogin
-                      ? 'Faça login para acessar super ofertas!'
-                      : 'Junte-se ao Clube e economize nas compras',
+                  _isLogin ? 'Faça login para acessar super ofertas!' : 'Junte-se ao Clube e economize nas compras',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                    height: 1.3,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.3),
                 ),
                 const SizedBox(height: 32),
-
-                // --- FORMULÁRIO (COM CARD ELEVADO SUTIL) ---
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -264,11 +255,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.grey.shade200),
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
-                      ),
+                      BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5)),
                     ],
                   ),
                   child: AnimatedSwitcher(
@@ -276,10 +263,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: _isLogin ? _buildLoginForm() : _buildRegisterForm(),
                   ),
                 ),
-
                 const SizedBox(height: 28),
-
-                // --- BOTÃO DE AÇÃO PRINCIPAL ---
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -289,9 +273,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       backgroundColor: AppColors.primaria,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     child: _carregando
                         ? const SizedBox(
@@ -305,10 +287,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
-                // --- BOTÃO ALTERNAR TELA ---
                 TextButton(
                   onPressed: _carregando ? null : () {
                     setState(() {
@@ -322,10 +301,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       children: [
                         TextSpan(
                           text: _isLogin ? 'Cadastre-se' : 'Faça Login',
-                          style: TextStyle(
-                            color: AppColors.primaria,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(color: AppColors.primaria, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -365,9 +341,7 @@ class _AuthScreenState extends State<AuthScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => EsqueciSenhaScreen(baseUrl: baseUrl),
-                ),
+                MaterialPageRoute(builder: (context) => EsqueciSenhaScreen(baseUrl: baseUrl)),
               );
             },
             style: TextButton.styleFrom(
@@ -377,11 +351,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
             child: Text(
               'Esqueceu sua senha?',
-              style: TextStyle(
-                color: AppColors.primaria,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: AppColors.primaria, fontWeight: FontWeight.bold, fontSize: 12),
             ),
           ),
         ),
@@ -416,17 +386,18 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(height: 16),
         _buildTextField(
           controller: _cadTelefoneController,
-          label: 'Telefone',
+          label: 'Telefone / WhatsApp',
           icon: Icons.phone_outlined,
           keyboardType: TextInputType.phone,
+          inputFormatters: [_TelefoneInputFormatter()],
         ),
         const SizedBox(height: 16),
-        // 🌟 CAMPO DE CPF ADICIONADO AO CADASTRO
         _buildTextField(
           controller: _cadCpfController,
           label: 'CPF (Para Nota Fiscal)',
           icon: Icons.badge_outlined,
           keyboardType: TextInputType.number,
+          inputFormatters: [_CpfInputFormatter()],
         ),
       ],
     );
@@ -439,11 +410,13 @@ class _AuthScreenState extends State<AuthScreen> {
     bool obscureText = false,
     bool isPassword = false,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       style: const TextStyle(fontSize: 14, color: Colors.black87),
       decoration: InputDecoration(
         labelText: label,
@@ -479,6 +452,47 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       ),
+    );
+  }
+}
+
+// 📱 Formatador Nativo para CPF (000.000.000-00)
+class _CpfInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    String text = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (text.length > 11) text = text.substring(0, 11);
+
+    String formatted = '';
+    for (int i = 0; i < text.length; i++) {
+      if (i == 3 || i == 6) formatted += '.';
+      if (i == 9) formatted += '-';
+      formatted += text[i];
+    }
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+// 📱 Formatador Nativo para Telefone ((00) 00000-0000)
+class _TelefoneInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    String text = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (text.length > 11) text = text.substring(0, 11);
+
+    String formatted = '';
+    for (int i = 0; i < text.length; i++) {
+      if (i == 0) formatted += '(';
+      if (i == 2) formatted += ') ';
+      if (i == 7) formatted += '-';
+      formatted += text[i];
+    }
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

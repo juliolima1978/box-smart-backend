@@ -1115,16 +1115,18 @@ class _EntregadorScreenState extends State<EntregadorScreen>
                           color: Colors.grey.shade600)),
                   const SizedBox(height: 4),
                   ...itens.map((item) {
-                    final String nomeProd =
-                        item['nome'] ?? item['nome_produto'] ?? 'Produto';
-                    final int qtd = item['quantidade'] ?? 1;
+                    final String nomeProd = item['nome'] ?? item['nome_produto'] ?? 'Produto';
+
+                    // 👇 AQUI ESTÁ A MÁGICA DA CORREÇÃO:
+                    final int qtd = (item['quantidade'] as num?)?.toInt() ?? 1;
+
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2.0),
                       child: Text('• $qtd x $nomeProd',
                           style: const TextStyle(
                               fontSize: 13, color: Color(0xFF334155))),
                     );
-                  }),
+                  }).toList(), // 👈 Adicione .toList() se o map reclamar de Iterable
 
                   const SizedBox(height: 16),
                   const Divider(height: 1),

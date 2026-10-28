@@ -10,6 +10,7 @@ import 'package:box_smart_frontend/screens/historico_pedidos_screen.dart';
 import 'package:box_smart_frontend/screens/painel/login_admin_screen.dart';
 import 'admin_screen.dart';
 import 'auth_screen.dart';
+import 'services/session_service.dart'; // 👈 Import do serviço de sessão adicionado!
 
 // Top-level handler para processar notificações com o app em background ou fechado
 @pragma('vm:entry-point')
@@ -22,7 +23,21 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  runApp(const BoxSmartApp());
+  // 👇 LÓGICA NOVA: Verifica se já tem uma sessão salva antes de ligar o app
+  final sessao = await SessionService.carregarSessao();
+  final String? tokenSalvo = sessao['token'];
+  final int clienteIdSalvo = sessao['clienteId'] ?? 0;
+  final String clienteNomeSalvo = sessao['clienteNome'] ?? 'Cliente';
+
+  final bool temSessaoValida = tokenSalvo != null && tokenSalvo.trim().isNotEmpty;
+
+  // Passa as informações de login para dentro do App
+  runApp(BoxSmartApp(
+    logado: temSessaoValida,
+    clienteId: clienteIdSalvo,
+    clienteNome: clienteNomeSalvo,
+    token: tokenSalvo ?? '',
+  ));
 }
 
 // ==========================================
@@ -65,7 +80,8 @@ class PushNotificationService {
               android: AndroidNotificationDetails(
                 'channel_pedidos',
                 'Status dos Pedidos',
-                channelDescription: 'Notificações de atualização de pedidos do Box Smart',
+                channelDescription:
+                'Notificações de atualização de pedidos do Box Smart',
                 importance: Importance.max,
                 priority: Priority.high,
                 icon: '@mipmap/ic_launcher',
@@ -82,7 +98,8 @@ class PushNotificationService {
           await registrarTokenNoBackend(fcmToken, userTokenAuth, baseUrl);
         }
       } catch (e) {
-        debugPrint("Aviso: Não foi possível obter o token FCM (Dispositivo offline ou sem Play Services): $e");
+        debugPrint(
+            "Aviso: Não foi possível obter o token FCM (Dispositivo offline ou sem Play Services): $e");
       }
 
       // Atualiza o registro caso o token seja renovado
@@ -122,9 +139,20 @@ class AppColors {
   static const Color textoSecundario = Color(0xFF757575);
 }
 
-
 class BoxSmartApp extends StatelessWidget {
-  const BoxSmartApp({super.key});
+  // 👇 Variáveis para receber os dados do main()
+  final bool logado;
+  final int clienteId;
+  final String clienteNome;
+  final String token;
+
+  const BoxSmartApp({
+    super.key,
+    required this.logado,
+    required this.clienteId,
+    required this.clienteNome,
+    required this.token,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -144,12 +172,16 @@ class BoxSmartApp extends StatelessWidget {
           ),
         ),
       ),
-      // 🚀 Alterado para abrir direto na HomeScreen para testes de autenticação
-      home: const HomeScreen(
-        clienteId: 0,
-        clienteNome: '',
-        token: '',
-      ),
+      // 👇 MÁGICA ACONTECE AQUI:
+      // Se ele encontrou a sessão (logado = true), pula direto pra Home!
+      // Se não encontrou, manda pra tela de Auth (Login).
+      home: logado
+          ? HomeScreen(
+        clienteId: clienteId,
+        clienteNome: clienteNome,
+        token: token,
+      )
+          : const AuthScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -274,7 +306,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _carregando = true;
   Map<String, dynamic> _dadosCliente = {};
-  final String baseUrl = "http://192.168.15.175:8000";
+  final String baseUrl = "https://box-smart-backend.onrender.com";
 
   @override
   void initState() {
@@ -380,7 +412,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             .substring(0, 1)
                             .toUpperCase()
                             : 'C',
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
                             color: AppColors.primaria),
@@ -524,7 +556,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             fontWeight: FontWeight.bold,
                             color: Colors.black87)),
                     subtitle: const Text('Ativo - Economia garantida',
-                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey)),
                     trailing: const Icon(Icons.chevron_right_rounded,
                         color: Colors.grey),
                     onTap: () {

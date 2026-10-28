@@ -45,6 +45,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _departamentosBackend = [];
   bool _carregandoDepartamentos = true;
 
+  // Mapa para controlar a página atual (dots) de cada seção horizontal de produtos
+  final Map<String, int> _paginasSecoes = {};
+
   // Retorna a lista de produtos cujos IDs estão presentes no Set _favoritosIds
   List<dynamic> get _produtosFavoritos {
     return _produtosBackend.where((prod) {
@@ -59,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _paginaBannerAtual = 0;
 
   late Future<List<dynamic>> _futuroHome;
-  String get baseUrl => "http://192.168.15.175:8000";
+  String get baseUrl => "https://box-smart-backend.onrender.com";
 
   int _totalNotificacoesNaoLidas = 0;
   DateTime? _ultimoTempoVoltar;
@@ -77,7 +80,20 @@ class _HomeScreenState extends State<HomeScreen> {
     _carregarCarrinhoLocal();
   }
 
-  // 💾 Salva o Map<int, int> do carrinho como JSON no dispositivo
+  Future<void> _recarregarHome() async {
+    _verificarNotificacoesNaoLidas();
+    _carregarFavoritos();
+    _carregarDepartamentos();
+    _carregarProdutosGerais();
+    _carregarConfiguracoesApp();
+
+    setState(() {
+      _futuroHome = _buscarHomeDinamica();
+    });
+
+    await _futuroHome;
+  }
+
   Future<void> _salvarCarrinhoLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -85,17 +101,21 @@ class _HomeScreenState extends State<HomeScreen> {
             (key, value) => MapEntry(key.toString(), value),
       );
       final String jsonCarrinho = json.encode(carrinhoStringKeys);
-      await prefs.setString('carrinho_box_smart_${widget.clienteId}', jsonCarrinho);
+      await prefs.setString(
+        'carrinho_box_smart_${widget.clienteId}',
+        jsonCarrinho,
+      );
     } catch (e) {
       debugPrint('Erro ao salvar carrinho localmente: $e');
     }
   }
 
-  // 📂 Carrega o carrinho salvo no dispositivo
   Future<void> _carregarCarrinhoLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? jsonCarrinho = prefs.getString('carrinho_box_smart_${widget.clienteId}');
+      final String? jsonCarrinho = prefs.getString(
+        'carrinho_box_smart_${widget.clienteId}',
+      );
 
       if (jsonCarrinho != null && jsonCarrinho.isNotEmpty) {
         final Map<String, dynamic> decoded = json.decode(jsonCarrinho);
@@ -115,26 +135,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       debugPrint('Erro ao carregar carrinho local: $e');
     }
-  }
-
-  Widget _botaoPesoRapido(String texto, double pesoKg, TextEditingController controller) {
-    return InkWell(
-      onTap: () {
-        controller.text = pesoKg.toStringAsFixed(3).replaceAll('.', ',');
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Text(
-          texto,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
-        ),
-      ),
-    );
   }
 
   Future<void> _carregarConfiguracoesApp() async {
@@ -163,26 +163,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  List<dynamic> _filtrarProdutosSecao(Map<String, dynamic> configSecao) {
-    final String tipo = (configSecao['tipo'] ?? 'padrao').toString().toLowerCase();
-    final String categoriaAlvo = (configSecao['categoria'] ?? '').toString().trim().toLowerCase();
-
-    return _produtosBackend.where((prod) {
-      final String catProduto = (prod['categoria'] ?? '').toString().trim().toLowerCase();
-      final bool pertenceCategoria = categoriaAlvo.isEmpty || catProduto == categoriaAlvo;
-
-      if (tipo == 'ofertas') {
-        final bool temOferta = prod['preco_clube'] != null || prod['em_oferta'] == true;
-        return pertenceCategoria && temOferta;
-      } else if (tipo == 'destaques') {
-        final bool eDestaque = prod['mais_vendido'] == true || prod['destaque'] == true;
-        return pertenceCategoria && eDestaque;
-      } else {
-        return pertenceCategoria;
-      }
-    }).toList();
-  }
-
   Future<void> _verificarNotificacoesNaoLidas() async {
     try {
       final response = await http.get(
@@ -197,7 +177,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final List<dynamic> data = json.decode(response.body);
         if (mounted) {
           setState(() {
-            _totalNotificacoesNaoLidas = data.where((item) => (item['lida'] ?? false) == false).length;
+            _totalNotificacoesNaoLidas = data
+                .where((item) => (item['lida'] ?? false) == false)
+                .length;
           });
         }
       }
@@ -257,29 +239,33 @@ class _HomeScreenState extends State<HomeScreen> {
       if (response.statusCode == 200) {
         final List<dynamic> prodsRaw = json.decode(response.body);
 
-        // --- FILTRO DE IMAGEM E ESTOQUE APLICADO AQUI ---
         final List<dynamic> prodsFiltrados = prodsRaw.where((prod) {
-          // 1. Filtro de imagem temporária
-          final String imgUrl = prod['imagem_url']?.toString().toLowerCase() ?? '';
-          if (imgUrl.contains('seu-storage.com.br') || imgUrl.contains('seustorage')) {
+          final String imgUrl =
+              prod['imagem_url']?.toString().toLowerCase() ?? '';
+          if (imgUrl.contains('seu-storage.com.br') ||
+              imgUrl.contains('seustorage')) {
             return false;
           }
 
-          // 2. Filtro de estoque zerado ou negativo
-          final dynamic rawEstoque = prod['estoque'] ?? prod['qtd_estoque'] ?? prod['quantidade_estoque'];
+          final dynamic rawEstoque =
+              prod['estoque'] ??
+                  prod['qtd_estoque'] ??
+                  prod['quantidade_estoque'];
           if (rawEstoque != null) {
-            final double? estoqueNum = double.tryParse(rawEstoque.toString().replaceAll(',', '.'));
+            final double? estoqueNum = double.tryParse(
+              rawEstoque.toString().replaceAll(',', '.'),
+            );
             if (estoqueNum != null && estoqueNum <= 0) {
               return false;
             }
           }
 
-          return true; // Produto válido!
+          return true;
         }).toList();
 
         if (mounted) {
           setState(() {
-            _produtosBackend = prodsFiltrados; // 👈 Atualizamos apenas com produtos válidos
+            _produtosBackend = prodsFiltrados;
           });
         }
       }
@@ -368,15 +354,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<List<dynamic>> _buscarHomeDinamica() async {
     try {
-      final response = await http.get(
+      final response = await http
+          .get(
         Uri.parse('$baseUrl/api/home'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${widget.token}',
         },
-      ).timeout(const Duration(seconds: 15));
+      )
+          .timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200 && response.body.isNotEmpty && response.body != 'null') {
+      if (response.statusCode == 200 &&
+          response.body.isNotEmpty &&
+          response.body != 'null') {
         final decoded = await compute(json.decode, response.body);
         if (decoded is List) {
           return decoded;
@@ -402,6 +392,11 @@ class _HomeScreenState extends State<HomeScreen> {
         favoritosIds: _favoritosIds,
         produtosListaGlobal: _produtosBackend,
         baseUrl: baseUrl,
+        onMudarAba: (novoIndice) {
+          setState(() {
+            _indiceAtual = novoIndice;
+          });
+        },
       ),
       CartScreen(
         carrinho: _carrinho,
@@ -419,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             _carrinho.clear();
           });
-          _salvarCarrinhoLocal(); // 👈 Alteração 1: Salva localmente ao limpar o carrinho
+          _salvarCarrinhoLocal();
         },
       ),
       ProfileScreen(clienteId: widget.clienteId, token: widget.token),
@@ -440,7 +435,8 @@ class _HomeScreenState extends State<HomeScreen> {
         final agora = DateTime.now();
         const limiteTempo = Duration(seconds: 2);
 
-        if (_ultimoTempoVoltar == null || agora.difference(_ultimoTempoVoltar!) > limiteTempo) {
+        if (_ultimoTempoVoltar == null ||
+            agora.difference(_ultimoTempoVoltar!) > limiteTempo) {
           _ultimoTempoVoltar = agora;
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -512,7 +508,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 22,
                       height: 22,
                       fit: BoxFit.contain,
-                      color: _indiceAtual == 0 ? AppColors.primaria : Colors.grey.shade400,
+                      color: _indiceAtual == 0
+                          ? AppColors.primaria
+                          : Colors.grey.shade400,
                       colorBlendMode: BlendMode.srcIn,
                     ),
                   ),
@@ -526,7 +524,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 22,
                       height: 22,
                       fit: BoxFit.contain,
-                      color: _indiceAtual == 1 ? AppColors.primaria : Colors.grey.shade400,
+                      color: _indiceAtual == 1
+                          ? AppColors.primaria
+                          : Colors.grey.shade400,
                       colorBlendMode: BlendMode.srcIn,
                     ),
                   ),
@@ -583,34 +583,38 @@ class _HomeScreenState extends State<HomeScreen> {
       color: Colors.grey.shade50,
       child: Stack(
         children: [
-          // 1. Conteúdo rolável que desliza POR BAIXO do cabeçalho fixo
-          FutureBuilder<List<dynamic>>(
-            future: _futuroHome,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(40.0),
-                    child: CircularProgressIndicator(),
-                  ),
+          RefreshIndicator(
+            color: AppColors.primaria,
+            backgroundColor: Colors.white,
+            displacement: alturaCabecalho + 20,
+            onRefresh: _recarregarHome,
+            child: FutureBuilder<List<dynamic>>(
+              future: _futuroHome,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                final secoes = snapshot.data ?? [];
+
+                return CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: SizedBox(height: alturaCabecalho),
+                    ),
+                    for (var secao in secoes) _buildSliverSecao(secao),
+                    SliverToBoxAdapter(child: _buildFooter(context)),
+                  ],
                 );
-              }
-
-              final secoes = snapshot.data ?? [];
-
-              return CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: SizedBox(height: alturaCabecalho),
-                  ),
-                  for (var secao in secoes) _buildSliverSecao(secao),
-                  SliverToBoxAdapter(child: _buildFooter(context)),
-                ],
-              );
-            },
+              },
+            ),
           ),
-
-          // 2. Cabeçalho fixo posicionado no topo
           Positioned(
             top: 0,
             left: 0,
@@ -619,7 +623,9 @@ class _HomeScreenState extends State<HomeScreen> {
               height: alturaCabecalho,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(24),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.08),
@@ -690,20 +696,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                           setState(() {
                                             _carrinho.clear();
                                           });
-                                          _salvarCarrinhoLocal(); // 👈 Alteração 1
+                                          _salvarCarrinhoLocal();
                                         },
                                       ),
                                     ),
                                   ).then((_) {
                                     if (mounted) {
                                       setState(() {});
-                                      _salvarCarrinhoLocal(); // 👈 Alteração 3: Salva ao voltar do carrinho
+                                      _salvarCarrinhoLocal();
                                     }
                                   });
                                 },
                               ),
-                              // 👇 NOVA REGRA PARA EXIBIR O BADGE
-                              if (_carrinho.values.fold(0, (sum, element) => sum + element) > 0)
+                              if (_carrinho.values.fold(
+                                0,
+                                    (sum, element) => sum + element,
+                              ) >
+                                  0)
                                 Positioned(
                                   right: 9,
                                   top: 5,
@@ -718,9 +727,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                       minHeight: 16,
                                     ),
                                     child: Text(
-                                      // Mostra a quantidade de "produtos diferentes" que realmente têm mais de 0 unidades/gramas
                                       '${_carrinho.entries.where((e) => e.value > 0).length}',
-                                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                       textAlign: TextAlign.center,
                                     ),
                                   ),
@@ -738,15 +750,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ? Image.network(
                               _logoUrl,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) => Image.asset(
+                              errorBuilder:
+                                  (
+                                  context,
+                                  error,
+                                  stackTrace,
+                                  ) => Image.asset(
                                 'assets/logogimptesc.png',
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const Text(
+                                errorBuilder: (_, __, ___) =>
+                                const Text(
                                   'BOX SMART',
                                   style: TextStyle(
-                                    color: AppColors.primaria,
+                                    color:
+                                    AppColors.primaria,
                                     fontSize: 15,
-                                    fontWeight: FontWeight.w900,
+                                    fontWeight:
+                                    FontWeight.w900,
                                     letterSpacing: 1.5,
                                   ),
                                 ),
@@ -755,10 +775,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 : Image.asset(
                               _logoUrl,
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Image.asset(
-                                'assets/logogimptesc.png',
-                                fit: BoxFit.contain,
-                              ),
+                              errorBuilder: (_, __, ___) =>
+                                  Image.asset(
+                                    'assets/logogimptesc.png',
+                                    fit: BoxFit.contain,
+                                  ),
                             ))
                                 : Image.asset(
                               'assets/logogimptesc.png',
@@ -808,7 +829,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ).then((_) {
                                 if (mounted) {
                                   setState(() {});
-                                  _salvarCarrinhoLocal(); // 👈 Alteração 3: Salva ao voltar dos favoritos
+                                  _salvarCarrinhoLocal();
                                 }
                               });
                             },
@@ -888,13 +909,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               carrinho: _carrinho,
                               favoritosIds: _favoritosIds,
                               produtosListaGlobal: _produtosBackend,
-                              //baseUrl: '',
                             ),
                           ),
                         ).then((_) {
                           if (mounted) {
                             setState(() {});
-                            _salvarCarrinhoLocal(); // 👈 Alteração 3: Salva ao voltar da busca
+                            _salvarCarrinhoLocal();
                           }
                         });
                       },
@@ -910,7 +930,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           size: 20,
                         ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                        ),
                       ),
                     ),
                   ),
@@ -925,14 +947,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSliverSecao(Map<String, dynamic> secao) {
     final String tipo = (secao['tipo'] ?? 'padrao').toString().toLowerCase();
+    final String tituloSecao = secao['titulo'] ?? 'Seção';
+    // Chave única para identificar a página atual dos dots desta seção no mapa
+    final String secaoKey = '${tituloSecao}_${secao.hashCode}';
 
     switch (tipo) {
       case 'banner_principal':
         List imagens = [];
         if (secao['itens'] != null && (secao['itens'] as List).isNotEmpty) {
           imagens = secao['itens'];
-        } else if (secao['banner_url'] != null && secao['banner_url'].toString().isNotEmpty) {
-          imagens = [{'imagem_url': secao['banner_url']}];
+        } else if (secao['banner_url'] != null &&
+            secao['banner_url'].toString().isNotEmpty) {
+          imagens = [
+            {'imagem_url': secao['banner_url']},
+          ];
         }
 
         if (imagens.isEmpty) {
@@ -964,36 +992,55 @@ class _HomeScreenState extends State<HomeScreen> {
                       final dynamic bannerObj = imagens[realIndex];
 
                       final String url = bannerObj is Map
-                          ? (bannerObj['imagem_url'] ?? bannerObj['banner_url'] ?? '')
+                          ? (bannerObj['imagem_url'] ??
+                          bannerObj['banner_url'] ??
+                          '')
                           : bannerObj.toString();
-                      final String? acaoTipo = bannerObj is Map ? bannerObj['acao_tipo'] : null;
-                      final String? acaoValor = bannerObj is Map ? bannerObj['acao_valor'] : null;
+                      final String? acaoTipo = bannerObj is Map
+                          ? bannerObj['acao_tipo']
+                          : null;
+                      final String? acaoValor = bannerObj is Map
+                          ? bannerObj['acao_valor']
+                          : null;
 
-                      final bool eRede = url.startsWith('http://') || url.startsWith('https://');
+                      final bool eRede =
+                          url.startsWith('http://') ||
+                              url.startsWith('https://');
 
                       return GestureDetector(
                         onTap: () async {
                           if (acaoTipo == null || acaoTipo.isEmpty) return;
                           if (acaoTipo == 'categoria' && acaoValor != null) {
-                            final categoriaEncontrada = _departamentosBackend.firstWhere(
-                                  (cat) => (cat['nome'] ?? '').toString().trim().toLowerCase() == acaoValor.trim().toLowerCase(),
+                            final categoriaEncontrada = _departamentosBackend
+                                .firstWhere(
+                                  (cat) =>
+                              (cat['nome'] ?? '')
+                                  .toString()
+                                  .trim()
+                                  .toLowerCase() ==
+                                  acaoValor.trim().toLowerCase(),
                               orElse: () => null,
                             );
-                            final int catIdEncontrado = categoriaEncontrada != null ? categoriaEncontrada['id'] : 0;
+                            final int catIdEncontrado =
+                            categoriaEncontrada != null
+                                ? categoriaEncontrada['id']
+                                : 0;
 
-                            final int? abaSelecionada = await Navigator.push<int>(
+                            final int? abaSelecionada =
+                            await Navigator.push<int>(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => CategoriaProdutosScreen(
-                                  categoriaId: catIdEncontrado,
-                                  categoriaNome: acaoValor,
-                                  baseUrl: baseUrl,
-                                  clienteId: widget.clienteId,
-                                  token: widget.token,
-                                  carrinho: _carrinho,
-                                  favoritosIds: _favoritosIds,
-                                  produtosListaGlobal: _produtosBackend,
-                                ),
+                                builder: (context) =>
+                                    CategoriaProdutosScreen(
+                                      categoriaId: catIdEncontrado,
+                                      categoriaNome: acaoValor,
+                                      baseUrl: baseUrl,
+                                      clienteId: widget.clienteId,
+                                      token: widget.token,
+                                      carrinho: _carrinho,
+                                      favoritosIds: _favoritosIds,
+                                      produtosListaGlobal: _produtosBackend,
+                                    ),
                               ),
                             );
 
@@ -1003,7 +1050,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               });
                             } else if (mounted) {
                               setState(() {});
-                              _salvarCarrinhoLocal(); // 👈 Alteração 3: Salva ao voltar do banner categoria
+                              _salvarCarrinhoLocal();
                             }
                           } else if (acaoTipo == 'clube_prime') {
                             Navigator.push(
@@ -1025,14 +1072,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             url,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(Icons.broken_image_outlined, size: 50, color: Colors.grey),
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: 50,
+                                color: Colors.grey,
+                              ),
                             ),
                           )
                               : Image.asset(
                             url,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(Icons.image_not_supported_outlined, size: 50, color: Colors.grey),
+                              child: Icon(
+                                Icons.image_not_supported_outlined,
+                                size: 50,
+                                color: Colors.grey,
+                              ),
                             ),
                           ),
                         ),
@@ -1050,8 +1105,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           height: 32,
                           child: IconButton(
                             padding: EdgeInsets.zero,
-                            style: IconButton.styleFrom(foregroundColor: Colors.white),
-                            icon: const Icon(Icons.chevron_right_rounded, size: 24),
+                            style: IconButton.styleFrom(
+                              foregroundColor: Colors.white,
+                            ),
+                            icon: const Icon(
+                              Icons.chevron_right_rounded,
+                              size: 24,
+                            ),
                             onPressed: () => _proximoSlideBanner(totalImagens),
                           ),
                         ),
@@ -1068,8 +1128,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           height: 32,
                           child: IconButton(
                             padding: EdgeInsets.zero,
-                            style: IconButton.styleFrom(foregroundColor: Colors.white),
-                            icon: const Icon(Icons.chevron_left_rounded, size: 24),
+                            style: IconButton.styleFrom(
+                              foregroundColor: Colors.white,
+                            ),
+                            icon: const Icon(
+                              Icons.chevron_left_rounded,
+                              size: 24,
+                            ),
                             onPressed: _anteriorSlideBanner,
                           ),
                         ),
@@ -1083,14 +1148,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(totalImagens, (index) {
-                          final bool eAtivo = (_paginaBannerAtual % totalImagens) == index;
+                          final bool eAtivo =
+                              (_paginaBannerAtual % totalImagens) == index;
                           return AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
                             margin: const EdgeInsets.symmetric(horizontal: 3),
                             height: 8,
                             width: eAtivo ? 20 : 8,
                             decoration: BoxDecoration(
-                              color: eAtivo ? Colors.white : Colors.white.withOpacity(0.5),
+                              color: eAtivo
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.5),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           );
@@ -1112,7 +1180,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  secao['titulo'] ?? 'Navegue por Departamentos',
+                  tituloSecao,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -1124,7 +1192,9 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(
                 height: 115,
                 child: _carregandoDepartamentos
-                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
                     : _departamentosBackend.isEmpty
                     ? const Center(
                   child: Text(
@@ -1135,30 +1205,39 @@ class _HomeScreenState extends State<HomeScreen> {
                     : ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: _departamentosBackend.length * 1000,
+                  itemCount: _departamentosBackend.length,
                   itemBuilder: (context, index) {
-                    final realIndex = index % _departamentosBackend.length;
+                    final realIndex =
+                        index % _departamentosBackend.length;
                     final cat = _departamentosBackend[realIndex];
 
                     final int catId = cat['id'] ?? 0;
                     final String nome = cat['nome'] ?? 'Setor';
-                    final String? imagemUrl = cat['imagem_url'] ?? cat['imagem'];
+                    final String? imagemUrl =
+                        cat['imagem_url'] ?? cat['imagem'];
 
                     final String? corFundoHex = cat['cor_fundo'];
-                    final Color corFundoAplicada = (corFundoHex != null && corFundoHex.isNotEmpty)
+                    final Color corFundoAplicada =
+                    (corFundoHex != null && corFundoHex.isNotEmpty)
                         ? _parseCor(corFundoHex)
                         : Colors.white;
 
                     final String? corTextoHex = cat['cor_texto'];
-                    final Color corTextoAplicada = (corTextoHex != null && corTextoHex.isNotEmpty)
+                    final Color corTextoAplicada =
+                    (corTextoHex != null && corTextoHex.isNotEmpty)
                         ? _parseCor(corTextoHex)
                         : Colors.black87;
 
                     final String? corIconeHex = cat['cor_icone'];
-                    final bool temCorIcone = corIconeHex != null && corIconeHex.toString().trim().isNotEmpty;
-                    final bool eFotoCompleta = cat['is_foto'] == true ||
-                        cat['e_foto'] == true ||
-                        (!temCorIcone && imagemUrl != null && imagemUrl.startsWith('http'));
+                    final bool temCorIcone =
+                        corIconeHex != null &&
+                            corIconeHex.toString().trim().isNotEmpty;
+                    final bool eFotoCompleta =
+                        cat['is_foto'] == true ||
+                            cat['e_foto'] == true ||
+                            (!temCorIcone &&
+                                imagemUrl != null &&
+                                imagemUrl.startsWith('http'));
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1167,22 +1246,23 @@ class _HomeScreenState extends State<HomeScreen> {
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => CategoriaProdutosScreen(
-                                categoriaId: catId,
-                                categoriaNome: nome,
-                                baseUrl: baseUrl,
-                                clienteId: widget.clienteId,
-                                token: widget.token,
-                                carrinho: _carrinho,
-                                favoritosIds: _favoritosIds,
-                                produtosListaGlobal: _produtosBackend,
-                              ),
+                              builder: (context) =>
+                                  CategoriaProdutosScreen(
+                                    categoriaId: catId,
+                                    categoriaNome: nome,
+                                    baseUrl: baseUrl,
+                                    clienteId: widget.clienteId,
+                                    token: widget.token,
+                                    carrinho: _carrinho,
+                                    favoritosIds: _favoritosIds,
+                                    produtosListaGlobal: _produtosBackend,
+                                  ),
                             ),
                           );
 
                           if (mounted) {
                             setState(() {});
-                            _salvarCarrinhoLocal(); // 👈 Alteração 3: Salva ao voltar de Categoria
+                            _salvarCarrinhoLocal();
                           }
                         },
                         child: Column(
@@ -1192,7 +1272,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               height: 68,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: eFotoCompleta ? Colors.white : corFundoAplicada,
+                                color: eFotoCompleta
+                                    ? Colors.white
+                                    : corFundoAplicada,
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withOpacity(0.08),
@@ -1201,42 +1283,61 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ],
                               ),
-                              child: eFotoCompleta && imagemUrl != null && imagemUrl.startsWith('http')
+                              child:
+                              eFotoCompleta &&
+                                  imagemUrl != null &&
+                                  imagemUrl.startsWith('http')
                                   ? ClipOval(
                                 child: Image.network(
                                   imagemUrl,
                                   width: 68,
                                   height: 68,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Padding(
-                                    padding: const EdgeInsets.all(14.0),
-                                    child: Icon(
-                                      Icons.storefront,
-                                      color: _parseCor(corIconeHex),
-                                      size: 26,
-                                    ),
-                                  ),
+                                  errorBuilder: (_, __, ___) =>
+                                      Padding(
+                                        padding:
+                                        const EdgeInsets.all(
+                                          14.0,
+                                        ),
+                                        child: Icon(
+                                          Icons.storefront,
+                                          color: _parseCor(
+                                            corIconeHex,
+                                          ),
+                                          size: 26,
+                                        ),
+                                      ),
                                 ),
                               )
                                   : Padding(
                                 padding: const EdgeInsets.all(14.0),
-                                child: imagemUrl != null && imagemUrl.startsWith('http')
+                                child:
+                                imagemUrl != null &&
+                                    imagemUrl.startsWith('http')
                                     ? Image.network(
                                   imagemUrl,
                                   width: 28,
                                   height: 28,
                                   fit: BoxFit.contain,
-                                  color: _parseCor(corIconeHex),
-                                  colorBlendMode: BlendMode.srcIn,
-                                  errorBuilder: (_, __, ___) => Icon(
+                                  color: _parseCor(
+                                    corIconeHex,
+                                  ),
+                                  colorBlendMode:
+                                  BlendMode.srcIn,
+                                  errorBuilder:
+                                      (_, __, ___) => Icon(
                                     Icons.storefront,
-                                    color: _parseCor(corIconeHex),
+                                    color: _parseCor(
+                                      corIconeHex,
+                                    ),
                                     size: 26,
                                   ),
                                 )
                                     : Icon(
                                   Icons.storefront,
-                                  color: _parseCor(corIconeHex),
+                                  color: _parseCor(
+                                    corIconeHex,
+                                  ),
                                   size: 26,
                                 ),
                               ),
@@ -1278,80 +1379,105 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'curadoria':
       case 'padrao':
       case 'carrossel':
-        final String tituloSecao = secao['titulo'] ?? 'Ofertas';
         List produtosSecao = secao['produtos'] ?? [];
 
         if (produtosSecao.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
 
+        final int paginaAtualSecao = _paginasSecoes[secaoKey] ?? 0;
+
         return SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      tituloSecao,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    tituloSecao,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 12),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.49,
-                  ),
-                  itemCount: produtosSecao.length,
-                  itemBuilder: (context, index) {
-                    final prod = produtosSecao[index];
-                    return ProdutoCard(
-                      produto: prod,
-                      carrinho: _carrinho,
-                      favoritosIds: _favoritosIds,
-                      produtosListaGlobal: _produtosBackend,
-                      onCarrinhoAlterado: () {
-                        setState(() {});
-                        _salvarCarrinhoLocal(); // 👈 Alteração 2: Salva ao alterar pelo ProdutoCard na Home
-                      },
-                      onToggleFavorito: (produtoId) {
-                        _toggleFavorito(produtoId);
-                      },
-                      onTapDetalhes: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProdutoDetalheScreen(
-                              clienteId: widget.clienteId,
-                              token: widget.token,
-                              favoritosIds: _favoritosIds,
-                              produto: prod,
-                              carrinho: _carrinho,
-                              produtosListaGlobal: _produtosBackend,
-                            ),
-                          ),
-                        ).then((_) {
-                          if (mounted) {
+                // 🔄 Carrossel com PageView para suportar os dots dinâmicos
+                SizedBox(
+                  height: 310,
+                  child: PageView.builder(
+                    controller: PageController(viewportFraction: 0.52),
+                    itemCount: produtosSecao.length,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _paginasSecoes[secaoKey] = index;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      final prod = produtosSecao[index];
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ProdutoCard(
+                          produto: prod,
+                          carrinho: _carrinho,
+                          favoritosIds: _favoritosIds,
+                          produtosListaGlobal: _produtosBackend,
+                          onCarrinhoAlterado: () {
                             setState(() {});
-                            _salvarCarrinhoLocal(); // 👈 Alteração 3: Salva ao voltar da tela de detalhes
-                          }
-                        });
-                      },
-                    );
-                  },
-                )
+                            _salvarCarrinhoLocal();
+                          },
+                          onToggleFavorito: (produtoId) {
+                            _toggleFavorito(produtoId);
+                          },
+                          onTapDetalhes: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ProdutoDetalheScreen(
+                                  clienteId: widget.clienteId,
+                                  token: widget.token,
+                                  favoritosIds: _favoritosIds,
+                                  produto: prod,
+                                  carrinho: _carrinho,
+                                  produtosListaGlobal: _produtosBackend,
+                                ),
+                              ),
+                            ).then((_) {
+                              if (mounted) {
+                                setState(() {});
+                                _salvarCarrinhoLocal();
+                              }
+                            });
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // 🔘 Indicadores de Página (Dots em formato de pílula) abaixo do carrossel
+                if (produtosSecao.length > 1)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(produtosSecao.length, (index) {
+                      bool selecionado = paginaAtualSecao == index;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.symmetric(horizontal: 3.0),
+                        height: 6.0,
+                        width: selecionado ? 20.0 : 6.0,
+                        decoration: BoxDecoration(
+                          color: selecionado
+                              ? AppColors.primaria
+                              : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(3.0),
+                        ),
+                      );
+                    }),
+                  ),
               ],
             ),
           ),
@@ -1361,8 +1487,11 @@ class _HomeScreenState extends State<HomeScreen> {
         List imagens = [];
         if (secao['itens'] != null && (secao['itens'] as List).isNotEmpty) {
           imagens = secao['itens'];
-        } else if (secao['banner_url'] != null && secao['banner_url'].toString().isNotEmpty) {
-          imagens = [{'imagem_url': secao['banner_url']}];
+        } else if (secao['banner_url'] != null &&
+            secao['banner_url'].toString().isNotEmpty) {
+          imagens = [
+            {'imagem_url': secao['banner_url']},
+          ];
         }
 
         if (imagens.isEmpty) {
@@ -1379,23 +1508,40 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemBuilder: (context, index) {
                     final dynamic bannerObj = imagens[index];
                     final String bannerUrl = bannerObj is Map
-                        ? (bannerObj['imagem_url'] ?? bannerObj['banner_url'] ?? '')
+                        ? (bannerObj['imagem_url'] ??
+                        bannerObj['banner_url'] ??
+                        '')
                         : bannerObj.toString();
-                    final String? acaoTipo = bannerObj is Map ? bannerObj['acao_tipo'] : null;
-                    final String? acaoValor = bannerObj is Map ? bannerObj['acao_valor'] : null;
+                    final String? acaoTipo = bannerObj is Map
+                        ? bannerObj['acao_tipo']
+                        : null;
+                    final String? acaoValor = bannerObj is Map
+                        ? bannerObj['acao_valor']
+                        : null;
 
-                    final bool eRede = bannerUrl.startsWith('http://') || bannerUrl.startsWith('https://');
+                    final bool eRede =
+                        bannerUrl.startsWith('http://') ||
+                            bannerUrl.startsWith('https://');
 
                     return GestureDetector(
                       onTap: () async {
                         if (acaoTipo == null || acaoTipo.isEmpty) return;
                         if (acaoTipo == 'categoria' && acaoValor != null) {
-                          final categoriaEncontrada = _departamentosBackend.firstWhere(
-                                (cat) => (cat['nome'] ?? '').toString().trim().toLowerCase() == acaoValor.trim().toLowerCase(),
+                          final categoriaEncontrada = _departamentosBackend
+                              .firstWhere(
+                                (cat) =>
+                            (cat['nome'] ?? '')
+                                .toString()
+                                .trim()
+                                .toLowerCase() ==
+                                acaoValor.trim().toLowerCase(),
                             orElse: () => null,
                           );
 
-                          final int catIdEncontrado = categoriaEncontrada != null ? categoriaEncontrada['id'] : 0;
+                          final int catIdEncontrado =
+                          categoriaEncontrada != null
+                              ? categoriaEncontrada['id']
+                              : 0;
 
                           final int? abaSelecionada = await Navigator.push<int>(
                             context,
@@ -1419,7 +1565,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             });
                           } else if (mounted) {
                             setState(() {});
-                            _salvarCarrinhoLocal(); // 👈 Alteração 3
+                            _salvarCarrinhoLocal();
                           }
                         } else if (acaoTipo == 'clube_prime') {
                           Navigator.push(
@@ -1441,7 +1587,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(15),
                           color: Colors.grey.shade300,
                           image: DecorationImage(
-                            image: eRede ? NetworkImage(bannerUrl) : AssetImage(bannerUrl) as ImageProvider,
+                            image: eRede
+                                ? NetworkImage(bannerUrl)
+                                : AssetImage(bannerUrl) as ImageProvider,
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -1456,9 +1604,9 @@ class _HomeScreenState extends State<HomeScreen> {
         );
 
       default:
-        if (secao['produtos'] != null && (secao['produtos'] as List).isNotEmpty) {
+        if (secao['produtos'] != null &&
+            (secao['produtos'] as List).isNotEmpty) {
           final List produtosSecao = secao['produtos'];
-          final String tituloSecao = secao['titulo'] ?? 'Seção Promocional';
 
           return SliverToBoxAdapter(
             child: Padding(
@@ -1478,7 +1626,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -1494,7 +1643,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         produtosListaGlobal: _produtosBackend,
                         onCarrinhoAlterado: () {
                           setState(() {});
-                          _salvarCarrinhoLocal(); // 👈 Alteração 2: Salva ao alterar pelo ProdutoCard
+                          _salvarCarrinhoLocal();
                         },
                         onToggleFavorito: (produtoId) {
                           _toggleFavorito(produtoId);
@@ -1515,13 +1664,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           ).then((_) {
                             if (mounted) {
                               setState(() {});
-                              _salvarCarrinhoLocal(); // 👈 Alteração 3: Salva ao voltar de Detalhes
+                              _salvarCarrinhoLocal();
                             }
                           });
                         },
                       );
                     },
-                  )
+                  ),
                 ],
               ),
             ),
@@ -1531,9 +1680,154 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  final TextEditingController _newsletterController = TextEditingController();
+
+  Future<void> _inscreverNewsletter() async {
+    final email = _newsletterController.text.trim();
+
+    if (email.isEmpty || !email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, insira um e-mail válido.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/newsletter/inscrever'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${widget.token}',
+        },
+        body: jsonEncode({'email': email}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _newsletterController.clear();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Inscrição realizada com sucesso! Obrigado.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Erro ao se inscrever. Tente novamente mais tarde.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Falha de conexão: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _abrirPaginaInstitucionalDinamica(BuildContext context, String titulo, String conteudo) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).padding.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    titulo,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaria,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const Divider(),
+            const SizedBox(height: 10),
+            Text(
+              conteudo.isNotEmpty ? conteudo : 'Informações institucionais do Box Smart.',
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.black87,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaria,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Entendido', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _lancarUrlExterna(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      debugPrint('Não foi possível abrir o link: $urlString');
+    }
+  }
+
   Widget _buildFooter(BuildContext context) {
     final String copyrightText = _footerData['texto_copyright'] ??
-        '© 2026 Box Smart Supermercados. Todos os direitos reservados.';
+        '© 2026 Supermercado Tescarollo. Todos os direitos reservados.';
+
+    final List institucionalItens = _footerData['coluna_institucional'] ?? [
+      {'titulo': 'Sobre Nós', 'conteudo': 'O Tescarollo revoluciona suas compras.'},
+      {'titulo': 'Fale Conosco', 'conteudo': 'Atendimento via comercial@tescarollo.com.br'}
+    ];
+    final List plataformaItens = _footerData['coluna_plataforma'] ?? [
+      {'titulo': 'Funcionalidades', 'conteudo': 'Aplicativo inteligente de supermercado.'}
+    ];
+    final List suporteItens = _footerData['coluna_suporte'] ?? [
+      {'titulo': 'Central de Ajuda', 'conteudo': 'Estamos prontos para ajudar.'}
+    ];
+    final Map redesSociais = _footerData['redes_sociais'] ?? {};
 
     return Container(
       color: AppColors.primaria,
@@ -1549,28 +1843,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildColunaLogo(),
-                    _buildColunaLinks('Institucional', [
-                      'Sobre Nós',
-                      'Nossos Serviços',
-                      'Carreira',
-                      'Blog',
-                      'Fale Conosco',
-                    ]),
-                    _buildColunaLinks('Plataforma', [
-                      'Funcionalidades',
-                      'Segurança',
-                      'Integrações',
-                      'Planos e Preços',
-                      'Para Empresas',
-                    ]),
-                    _buildColunaLinks('Suporte', [
-                      'Central de Ajuda',
-                      'Termos de Uso',
-                      'Política de Privacidade',
-                      'Status das Operações',
-                      'Área do Cliente',
-                    ]),
+                    _buildColunaLogo(redesSociais),
+                    _buildColunaLinksDinamica('Institucional', institucionalItens),
+                    _buildColunaLinksDinamica('Plataforma', plataformaItens),
+                    _buildColunaLinksDinamica('Suporte', suporteItens),
                     _buildColunaNewsletter(),
                   ],
                 );
@@ -1578,31 +1854,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildColunaLogo(),
+                    _buildColunaLogo(redesSociais),
                     const SizedBox(height: 30),
-                    _buildColunaLinks('Institucional', [
-                      'Sobre Nós',
-                      'Nossos Serviços',
-                      'Carreira',
-                      'Blog',
-                      'Fale Conosco',
-                    ]),
+                    _buildColunaLinksDinamica('Institucional', institucionalItens),
                     const SizedBox(height: 25),
-                    _buildColunaLinks('Plataforma', [
-                      'Funcionalidades',
-                      'Segurança',
-                      'Integrações',
-                      'Planos e Preços',
-                      'Para Empresas',
-                    ]),
+                    _buildColunaLinksDinamica('Plataforma', plataformaItens),
                     const SizedBox(height: 25),
-                    _buildColunaLinks('Suporte', [
-                      'Central de Ajuda',
-                      'Termos de Uso',
-                      'Política de Privacidade',
-                      'Status das Operações',
-                      'Área do Cliente',
-                    ]),
+                    _buildColunaLinksDinamica('Suporte', suporteItens),
                     const SizedBox(height: 30),
                     _buildColunaNewsletter(),
                   ],
@@ -1697,7 +1955,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildColunaLogo() {
+  Widget _buildColunaLogo(Map redesSociais) {
     return SizedBox(
       width: 250,
       child: Column(
@@ -1719,11 +1977,16 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 20),
           Row(
             children: [
-              _buildSocialIcon(Icons.business),
-              const SizedBox(width: 12),
-              _buildSocialIcon(Icons.camera_alt),
-              const SizedBox(width: 12),
-              _buildSocialIcon(Icons.facebook),
+              if (redesSociais['whatsapp'] != null)
+                _buildSocialIcon(Icons.phone, () => _lancarUrlExterna(redesSociais['whatsapp'])),
+              if (redesSociais['whatsapp'] != null) const SizedBox(width: 12),
+
+              if (redesSociais['instagram'] != null)
+                _buildSocialIcon(Icons.camera_alt, () => _lancarUrlExterna(redesSociais['instagram'])),
+              if (redesSociais['instagram'] != null) const SizedBox(width: 12),
+
+              if (redesSociais['facebook'] != null)
+                _buildSocialIcon(Icons.facebook, () => _lancarUrlExterna(redesSociais['facebook'])),
             ],
           ),
         ],
@@ -1748,23 +2011,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSocialIcon(IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
+  Widget _buildSocialIcon(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Icon(icon, color: Colors.white, size: 16),
       ),
-      child: Icon(icon, color: Colors.white, size: 16),
     );
   }
 
-  Widget _buildColunaLinks(String titulo, List<String> itens) {
+  Widget _buildColunaLinksDinamica(String tituloColuna, List itens) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          titulo,
+          tituloColuna,
           style: const TextStyle(
             color: Colors.white,
             fontSize: 15,
@@ -1772,15 +2039,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 14),
-        ...itens.map(
-              (item) => Padding(
+        ...itens.map((item) {
+          final String nomeItem = item['titulo'] ?? '';
+          final String conteudoItem = item['conteudo'] ?? '';
+
+          return Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: Text(
-              item,
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            child: InkWell(
+              onTap: () => _abrirPaginaInstitucionalDinamica(context, nomeItem, conteudoItem),
+              child: Text(
+                nomeItem,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  decoration: TextDecoration.underline,
+                  decorationColor: Colors.white30,
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        }),
       ],
     );
   }
@@ -1814,12 +2092,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const TextField(
-                    decoration: InputDecoration(
+                  child: TextField(
+                    controller: _newsletterController,
+                    decoration: const InputDecoration(
                       hintText: 'Seu melhor e-mail',
                       hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
                       border: InputBorder.none,
                     ),
+                    style: const TextStyle(fontSize: 12, color: Colors.black87),
                   ),
                 ),
               ),
@@ -1836,7 +2116,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   elevation: 0,
                 ),
-                onPressed: () {},
+                onPressed: _inscreverNewsletter,
                 child: const Text(
                   'Inscrever',
                   style: TextStyle(color: Colors.white, fontSize: 12),
@@ -1848,37 +2128,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
-
-Widget _buildBoxPrimeSelo() {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-    decoration: BoxDecoration(
-      color: Colors.amber.shade700,
-      borderRadius: BorderRadius.circular(6),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.1),
-          blurRadius: 2,
-          offset: const Offset(0, 1),
-        ),
-      ],
-    ),
-    child: const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.workspace_premium, color: Colors.white, size: 10),
-        SizedBox(width: 3),
-        Text(
-          'BOX PRIME',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 9,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.2,
-          ),
-        ),
-      ],
-    ),
-  );
 }

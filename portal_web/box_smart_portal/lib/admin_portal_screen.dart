@@ -269,16 +269,81 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: Row(
-        children: [
-          // COLUNA LATERAL ESQUERDA
-          Container(
-            width: 110,
-            decoration: const BoxDecoration(
-              color: Color(0xFF0F172A),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Define que telas com menos de 800px de largura são mobile
+        final isMobile = constraints.maxWidth < 800;
+
+        // Cabeçalho unificado para as duas versões (com AppBar nativo para Mobile)
+        final appBar = AppBar(
+          backgroundColor: Colors.white,
+          elevation: 1,
+          shadowColor: Colors.black12,
+          iconTheme: const IconThemeData(color: Color(0xFF1E293B)),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  isMobile ? 'Painel Gestor' : 'Painel Operacional',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Color(0xFF1E293B),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (!isMobile) const SizedBox(width: 12),
+              if (!isMobile)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Box Smart Management',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            if (!isMobile)
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: const Color(0xFF1E3A8A),
+                    child: Text(_iniciais, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_nomeGestor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B))),
+                      Text(_cargoGestor.toUpperCase(), style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  const SizedBox(height: 24, child: VerticalDivider(color: Color(0xFFCBD5E1), width: 1)),
+                ],
+              ),
+            IconButton(
+              icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+              tooltip: 'Sair do Sistema',
+              onPressed: _fazerLogout,
             ),
+            const SizedBox(width: 8),
+          ],
+        );
+
+        // O Menu Lateral (NavigationRail) extraído como widget
+        Widget buildMenuLateral() {
+          return Container(
+            width: 110,
+            decoration: const BoxDecoration(color: Color(0xFF0F172A)),
             child: Column(
               children: [
                 Container(
@@ -291,27 +356,17 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
                           color: const Color(0xFF1E3A8A),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
-                          Icons.storefront,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+                        child: const Icon(Icons.storefront, color: Colors.white, size: 24),
                       ),
                       const SizedBox(height: 6),
                       const Text(
                         'BOX SMART',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                          letterSpacing: 1.2,
-                        ),
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 1.2),
                       ),
                     ],
                   ),
                 ),
                 const Divider(color: Color(0xFF334155), height: 1),
-
                 Expanded(
                   child: SingleChildScrollView(
                     child: IntrinsicHeight(
@@ -321,29 +376,14 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
                         indicatorColor: const Color(0xFF1E3A8A).withOpacity(0.5),
                         selectedIndex: _indiceSelecionado,
                         onDestinationSelected: (int index) {
-                          setState(() {
-                            _indiceSelecionado = index;
-                          });
+                          setState(() => _indiceSelecionado = index);
+                          if (isMobile) Navigator.pop(context); // Fecha o drawer no celular ao clicar
                         },
                         labelType: NavigationRailLabelType.all,
-                        selectedIconTheme: const IconThemeData(
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        unselectedIconTheme: const IconThemeData(
-                          color: Color(0xFF94A3B8),
-                          size: 22,
-                        ),
-                        selectedLabelTextStyle: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                        unselectedLabelTextStyle: const TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontWeight: FontWeight.w500,
-                          fontSize: 11,
-                        ),
+                        selectedIconTheme: const IconThemeData(color: Colors.white, size: 24),
+                        unselectedIconTheme: const IconThemeData(color: Color(0xFF94A3B8), size: 22),
+                        selectedLabelTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
+                        unselectedLabelTextStyle: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w500, fontSize: 11),
                         destinations: _menuFiltrado.map((item) {
                           return NavigationRailDestination(
                             icon: Icon(item.icon),
@@ -357,131 +397,58 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
                 ),
               ],
             ),
-          ),
+          );
+        }
 
-          // ÁREA PRINCIPAL DA DIREITA
-          Expanded(
-            child: Column(
-              children: [
-                Container(
-                  height: 65,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Text(
-                        'Painel Operacional',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          'Box Smart Management',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: const Color(0xFF1E3A8A),
-                            child: Text(
-                              _iniciais,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _nomeGestor,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Color(0xFF1E293B),
-                                ),
-                              ),
-                              Text(
-                                _cargoGestor.toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF64748B),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 16),
-                          const SizedBox(
-                            height: 24,
-                            child: VerticalDivider(color: Color(0xFFCBD5E1), width: 1),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
-                            tooltip: 'Sair do Sistema',
-                            onPressed: _fazerLogout,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-
-                // Conteúdo da Tela Ativa
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: _menuFiltrado[_indiceSelecionado].tela,
-                    ),
-                  ),
-                ),
+        // Conteúdo central da tela (A Aba que foi clicada)
+        Widget buildConteudoAtivo() {
+          return Container(
+            margin: EdgeInsets.all(isMobile ? 10 : 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
               ],
             ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: _menuFiltrado[_indiceSelecionado].tela,
+            ),
+          );
+        }
+
+        // Retorna a estrutura com base no dispositivo
+        if (isMobile) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF8FAFC),
+            appBar: appBar,
+            drawer: Drawer(
+              child: buildMenuLateral(), // Menu no Drawer deslizante!
+            ),
+            body: buildConteudoAtivo(),
+          );
+        }
+
+        // Layout original para Computador/Tablet
+        return Scaffold(
+          backgroundColor: const Color(0xFFF8FAFC),
+          body: Row(
+            children: [
+              buildMenuLateral(),
+              Expanded(
+                child: Column(
+                  children: [
+                    SizedBox(height: 65, child: appBar),
+                    Expanded(child: buildConteudoAtivo()),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

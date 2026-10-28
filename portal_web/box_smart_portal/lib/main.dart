@@ -23,12 +23,10 @@ class BoxSmartPortalApp extends StatelessWidget {
   const BoxSmartPortalApp({Key? key}) : super(key: key);
 
 
-
-
   @override
   Widget build(BuildContext context) {
     // Altere para o IP/porta do seu backend FastAPI
-    const String baseUrl = 'http://127.0.0.1:8000';
+    const String baseUrl = 'https://box-smart-backend.onrender.com';
 
     return MaterialApp(
       title: 'Box Smart - Portal Gestão',

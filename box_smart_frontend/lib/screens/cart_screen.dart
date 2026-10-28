@@ -69,7 +69,7 @@ class _CartScreenState extends State<CartScreen> {
   bool _ehMembroClube = false;
   bool _bannerDispensado = false;
 
-  final String baseUrl = "http://192.168.15.175:8000";
+  final String baseUrl = "https://box-smart-backend.onrender.com";
 
   String _enderecoEntrega = 'Endereço não selecionado';
   bool _precisaTroco = false;

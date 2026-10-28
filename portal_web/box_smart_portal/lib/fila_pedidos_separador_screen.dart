@@ -382,7 +382,7 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
           labelColor: Colors.amber,
           unselectedLabelColor: Colors.white70,
           tabs: [
-            Tab(text: 'Pendentes (${pendentesFiltrados.length})'),
+            Tab(text: 'Pendentes (${pendentesFiltrados.length})',),
             Tab(text: 'Em Separação (${emSeparacaoFiltrados.length})'),
             Tab(text: 'Concluídos (${concluidosFiltrados.length})'),
           ],
@@ -512,45 +512,62 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
             tilePadding: const EdgeInsets.all(12),
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center, // 👈 Alinhamento central
               children: [
-                Row(
-                  children: [
-                    Text(
-                      'Pedido #$pedidoId',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: ehConcluido ? Colors.green.shade100 : Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(12),
+                // 👇 O Expanded aqui empurra o valor total pra direita com segurança
+                Expanded(
+                  child: Wrap( // 👈 Wrap permite que as tags pulem de linha se a tela for pequena
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6.0, // Espaço horizontal entre pedido, status e aviso
+                    runSpacing: 4.0, // Espaço vertical se quebrar a linha
+                    children: [
+                      Text(
+                        'Pedido #$pedidoId',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      child: Text(
-                        pedido['status'],
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: ehConcluido ? Colors.green.shade900 : Colors.blue.shade900,
-                        ),
-                      ),
-                    ),
-                    if (itensFaltantesQtd > 0) ...[
-                      const SizedBox(width: 6),
+
+                      // TAG DE STATUS
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.red.shade100,
-                          borderRadius: BorderRadius.circular(8),
+                          color: ehConcluido ? Colors.green.shade100 : Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          '⚠️ $itensFaltantesQtd em falta',
-                          style: TextStyle(fontSize: 10, color: Colors.red.shade900, fontWeight: FontWeight.bold),
+                          pedido['status'],
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: ehConcluido ? Colors.green.shade900 : Colors.blue.shade900,
+                          ),
                         ),
                       ),
+
+                      // TAG DE ITENS EM FALTA
+                      if (itensFaltantesQtd > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '⚠️ $itensFaltantesQtd em falta',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.red.shade900,
+                                fontWeight: FontWeight.bold
+                            ),
+                          ),
+                        ),
                     ],
-                  ],
+                  ),
                 ),
+
+                const SizedBox(width: 8), // 👈 Um respiro seguro antes do valor total
+
+                // VALOR TOTAL FIXO NA DIREITA
                 Text(
                   'R\$ ${total.toStringAsFixed(2).replaceAll('.', ',')}',
                   style: const TextStyle(
