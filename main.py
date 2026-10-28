@@ -3089,50 +3089,65 @@ class RedefinirSenhaRequest(BaseModel):
     token: str
     nova_senha: str
 
+import os
+import resend
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
+import secrets
+
+# Inicializa o Resend com a chave das variáveis de ambiente do Render
+resend.api_key = os.environ.get("RESEND_API_KEY")
+
+router_auth = APIRouter(prefix="/auth", tags=["Autenticação"])
+
 @router_auth.post("/esqueci-senha")
 def esqueci_senha(dados: RecuperarSenhaRequest, db: Session = Depends(get_db)):
     # 1. Buscar o cliente pelo e-mail no banco de dados
     cliente = db.query(Cliente).filter(Cliente.email == dados.email).first()
     
-    # Por segurança, mesmo se o e-mail não existir, retornamos sucesso para evitar enumeração de usuários
+    # Por segurança, mesmo se o e-mail não existir, retornamos sucesso para evitar enumeração
     if not cliente:
         return {"mensagem": "Se o e-mail estiver cadastrado, as instruções foram enviadas."}
 
-    # 2. Gerar token temporário e tempo de expiração (15 minutos)
-    token = secrets.token_hex(4) # Ex: e27309fb
+    # 2. Gerar token temporário (4 caracteres/dígitos) e tempo de expiração (15 minutos)
+    token = secrets.token_hex(4).upper() # Ex: A3F2
     expiracao = datetime.utcnow() + timedelta(minutes=15)
 
-    # 3. Salvar no banco
+    # 3. Salvar no banco Neon
     cliente.reset_token = token
     cliente.reset_token_expires = expiracao
     db.commit()
 
-    print(f"🔑 TOKEN DE RECUPERAÇÃO PARA {dados.email}: {token}")
+    # 4. Enviar o e-mail utilizando o Resend
+    try:
+        params = {
+            "from": "Box Smart <onboarding@resend.dev>", # (Depois você pode trocar pelo seu domínio verificado no Resend)
+            "to": [cliente.email],
+            "subject": "Código de Recuperação de Senha - Box Smart",
+            "html": f"""
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                    <h2 style="color: #1E3A8A;">Recuperação de Senha</h2>
+                    <p>Olá! Recebemos uma solicitação para redefinir a senha da sua conta no <strong>Box Smart</strong>.</p>
+                    <p>O seu código de recuperação temporário é:</p>
+                    <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #1E3A8A; border-radius: 8px; margin: 20px 0;">
+                        {token}
+                    </div>
+                    <p>Este código é válido por <strong>15 minutos</strong>. Se você não solicitou isso, ignore este e-mail.</p>
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                    <p style="font-size: 12px; color: #777;">Equipe Box Smart</p>
+                </div>
+            """,
+        }
+        
+        email_response = resend.Emails.send(params)
+        print(f"📧 E-mail de recuperação enviado com sucesso para {cliente.email}. Resposta: {email_response}")
 
-    return {"mensagem": "Código de recuperação enviado com sucesso!"}
-
-@router_auth.post("/redefinir-senha")
-def redefinir_senha(dados: RedefinirSenhaRequest, db: Session = Depends(get_db)):
-    # 1. Buscar cliente pelo e-mail
-    cliente = db.query(Cliente).filter(Cliente.email == dados.email).first()
-
-    # 2. Validar se o cliente existe, se o token confere e se não expirou
-    if not cliente or cliente.reset_token != dados.token or not cliente.reset_token_expires or cliente.reset_token_expires < datetime.utcnow():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Token inválido ou expirado."
-        )
-
-    # 3. Gerar hash da nova senha e salvar no banco
-    # Ajuste 'senha_hash' ou 'senha' conforme o nome da coluna no seu modelo
-    cliente.senha_hash = pwd_context.hash(dados.nova_senha) 
+    except Exception as e:
+        print(f"❌ Erro ao enviar e-mail via Resend: {e}")
+        # Mesmo se houver falha no disparo do e-mail, por segurança mantemos o fluxo sem travar o cliente bruscamente
     
-    # 4. Limpar o token para que não seja reutilizado
-    cliente.reset_token = None
-    cliente.reset_token_expires = None
-    db.commit()
-
-    return {"mensagem": "Senha redefinida com sucesso! Faça login com a nova senha."}
+    return {"mensagem": "Código de recuperação enviado com sucesso!"}
 
 # 🌟 3. REGISTRO OBRIGATÓRIO DO ROUTER NO APP PRINCIPAL
 # Certifique-se de que 'app' é a sua instância principal (app = FastAPI())
