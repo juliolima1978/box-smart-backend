@@ -3109,6 +3109,25 @@ def esqueci_senha(dados: RecuperarSenhaRequest, db: Session = Depends(get_db)):
     # Por segurança, mesmo se o e-mail não existir, retornamos sucesso para evitar enumeração
     if not cliente:
         return {"mensagem": "Se o e-mail estiver cadastrado, as instruções foram enviadas."}
+    
+    
+class RedefinirSenhaRequest(BaseModel):
+    email: str
+    token: str
+    nova_senha: str
+
+@router_auth.post("/esqueci-senha/confirmar") # ou "/esqueci-senha/resetar"
+def confirmar_redefinicao_senha(dados: RedefinirSenhaRequest, db: Session = Depends(get_db)):
+    cliente = db.query(Cliente).filter(Cliente.email == dados.email).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+    
+    # Aqui você valida se o token confere com o salvo no banco e se não expirou.
+    # Exemplo simples de atualização da senha com hash:
+    cliente.senha_hash = security.obter_hash_senha(dados.nova_senha)
+    db.commit()
+    
+    return {"mensagem": "Senha redefinida com sucesso!"}
 
     # 2. Gerar token temporário (4 caracteres/dígitos) e tempo de expiração (15 minutos)
     token = secrets.token_hex(4).upper() # Ex: A3F2
