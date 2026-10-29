@@ -38,13 +38,6 @@ from treinar_recomendacao import treinar_motor_recomendacao
 from routers.frete import router as frete_router
 
 
-
-
-if not firebase_admin._apps:
-    # Se você usa variáveis de ambiente ou arquivo JSON de credenciais no Render:
-    cred = credentials.path("caminho/para/sua-chave-firebase.json") # Ou use application_default()
-    firebase_admin.initialize_app(cred)
-
 # Tenta importar o cliente WebSac (deve existir websac_client.py no projeto)
 try:
     from websac_client import WebSacIntegration
@@ -2316,6 +2309,21 @@ def atualizar_fcm_token(
     db.commit()
     return {"mensagem": "FCM Token atualizado com sucesso!"}
 
+@app.get("/admin/notificacoes", response_model=List[schemas.NotificacaoOut])
+@app.get("/admin/notificacoes/", response_model=List[schemas.NotificacaoOut])
+def listar_todas_notificacoes(db: Session = Depends(get_db)):
+    return db.query(models.Notificacao).order_by(models.Notificacao.data_envio.desc()).limit(50).all()
+
+@app.delete("/admin/notificacoes/{notificacao_id}", status_code=204)
+@app.delete("/admin/notificacoes/{notificacao_id}/", status_code=204)
+def deletar_notificacao(notificacao_id: int, db: Session = Depends(get_db)):
+    notificacao = db.query(models.Notificacao).filter(models.Notificacao.id == notificacao_id).first()
+    if not notificacao:
+        raise HTTPException(status_code=404, detail="Notificação não encontrada")
+        
+    db.delete(notificacao)
+    db.commit()
+    return {"message": "Notificação excluída com sucesso"}
 
 @app.post("/admin/notificacoes/campanha", status_code=201)
 @app.post("/admin/notificacoes/campanha/", status_code=201)
@@ -2324,24 +2332,10 @@ def disparar_campanha_marketing(titulo: str, mensagem: str, db: Session = Depend
     db.add(nova_notificacao)
     db.commit()
     db.refresh(nova_notificacao)
-    
-    # 🌟 DISPARA PARA TODOS OS CLIENTES QUE POSSUEM FCM TOKEN SALVO
-    clientes_com_token = db.query(models.Cliente).filter(models.Cliente.fcm_token != None).all()
-    for cliente in clientes_com_token:
-        try:
-            message = messaging.Message(
-                notification=messaging.Notification(title=titulo, body=mensagem),
-                token=cliente.fcm_token,
-            )
-            messaging.send(message)
-        except Exception as e:
-            print(f"Erro ao enviar push para cliente {cliente.id}: {e}")
-
     return {
         "mensagem": "Campanha de marketing disparada com sucesso para o Clube Box Smart!",
         "campanha": {"titulo": titulo, "detalhes": mensagem, "data": nova_notificacao.data_envio}
     }
-
 
 @app.post("/admin/notificacoes", response_model=schemas.NotificacaoOut, status_code=201)
 @app.post("/admin/notificacoes/", response_model=schemas.NotificacaoOut, status_code=201)
@@ -2357,32 +2351,6 @@ def disparar_notificacao(notificacao: schemas.NotificacaoCreate, db: Session = D
     db.add(nova_notificacao)
     db.commit()
     db.refresh(nova_notificacao)
-
-    # 🌟 DISPARA PARA UM CLIENTE ESPECÍFICO OU TODOS SE O CLIENTE_ID FOR NULO
-    if notificacao.cliente_id:
-        cliente = db.query(models.Cliente).filter(models.Cliente.id == notificacao.cliente_id).first()
-        if cliente and cliente.fcm_token:
-            try:
-                message = messaging.Message(
-                    notification=messaging.Notification(title=notificacao.titulo, body=notificacao.mensagem),
-                    token=cliente.fcm_token,
-                )
-                messaging.send(message)
-            except Exception as e:
-                print(f"Erro ao enviar push individual: {e}")
-    else:
-        # Se for para todos
-        clientes_com_token = db.query(models.Cliente).filter(models.Cliente.fcm_token != None).all()
-        for cliente in clientes_com_token:
-            try:
-                message = messaging.Message(
-                    notification=messaging.Notification(title=notificacao.titulo, body=notificacao.mensagem),
-                    token=cliente.fcm_token,
-                )
-                messaging.send(message)
-            except Exception as e:
-                print(f"Erro ao enviar push em massa: {e}")
-
     return nova_notificacao
 
 @app.get("/clientes/{cliente_id}/notificacoes")
