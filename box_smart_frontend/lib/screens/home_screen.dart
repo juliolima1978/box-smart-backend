@@ -1393,6 +1393,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 🏷️ Título da Seção alinhado com a margem padrão (16px)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
@@ -1405,11 +1406,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // 🔄 Carrossel com PageView para suportar os dots dinâmicos
+
+                // 🔄 Carrossel ajustado sem espaçamento lateral esquerdo
                 SizedBox(
                   height: 310,
                   child: PageView.builder(
+                    // Zeramos o padding do PageView e ajustamos a fração para fluidez perfeita
                     controller: PageController(viewportFraction: 0.52),
+                    padEnds: false, // 👈 ESSA É A CHAVE! Impede que o PageView dê recuo automático nas pontas
                     itemCount: produtosSecao.length,
                     onPageChanged: (index) {
                       setState(() {
@@ -1419,7 +1423,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemBuilder: (context, index) {
                       final prod = produtosSecao[index];
                       return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        // Margem apenas leve entre os cards, sem empurrar o primeiro
+                        margin: EdgeInsets.only(
+                          left: index == 0 ? 16 : 6, // 👈 O primeiro card gruda perfeitamente na margem de 16px da tela
+                          right: 6,
+                        ),
                         child: ProdutoCard(
                           produto: prod,
                           carrinho: _carrinho,
@@ -1458,7 +1466,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // 🔘 Indicadores de Página (Dots em formato de pílula) abaixo do carrossel
+                // 🔘 Indicadores de Página (Dots em formato de pílula)
                 if (produtosSecao.length > 1)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

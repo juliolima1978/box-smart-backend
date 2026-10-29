@@ -10,7 +10,7 @@ import 'package:box_smart_frontend/screens/historico_pedidos_screen.dart';
 import 'package:box_smart_frontend/screens/painel/login_admin_screen.dart';
 import 'admin_screen.dart';
 import 'auth_screen.dart';
-import 'services/session_service.dart'; // 👈 Import do serviço de sessão adicionado!
+import 'services/session_service.dart';
 
 // Top-level handler para processar notificações com o app em background ou fechado
 @pragma('vm:entry-point')
@@ -23,13 +23,19 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // 👇 LÓGICA NOVA: Verifica se já tem uma sessão salva antes de ligar o app
+  // Verifica se já tem uma sessão salva antes de ligar o app
   final sessao = await SessionService.carregarSessao();
   final String? tokenSalvo = sessao['token'];
   final int clienteIdSalvo = sessao['clienteId'] ?? 0;
   final String clienteNomeSalvo = sessao['clienteNome'] ?? 'Cliente';
 
   final bool temSessaoValida = tokenSalvo != null && tokenSalvo.trim().isNotEmpty;
+
+  // 🌟 INICIALIZA O PUSH NOTIFICATION IMEDIATAMENTE SE O USUÁRIO JÁ ESTIVER LOGADO
+  if (temSessaoValida) {
+    const String baseUrl = "https://box-smart-backend.onrender.com";
+    PushNotificationService.inicializar(tokenSalvo, baseUrl);
+  }
 
   // Passa as informações de login para dentro do App
   runApp(BoxSmartApp(
@@ -62,7 +68,21 @@ class PushNotificationService {
       AndroidInitializationSettings('@mipmap/ic_launcher');
       const InitializationSettings initSettings =
       InitializationSettings(android: androidSettings);
+
       await _localNotifications.initialize(initSettings);
+
+      // 🌟 REGISTRA O CANAL NO ANDROID PARA EXIBIR OS BANNERS COM ALTA IMPORTÂNCIA
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'channel_pedidos',
+        'Status dos Pedidos',
+        description: 'Notificações de atualização de pedidos do Box Smart',
+        importance: Importance.max,
+      );
+
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
 
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -76,12 +96,11 @@ class PushNotificationService {
             notification.hashCode,
             notification.title,
             notification.body,
-            const NotificationDetails(
+            NotificationDetails(
               android: AndroidNotificationDetails(
-                'channel_pedidos',
-                'Status dos Pedidos',
-                channelDescription:
-                'Notificações de atualização de pedidos do Box Smart',
+                channel.id,
+                channel.name,
+                channelDescription: channel.description,
                 importance: Importance.max,
                 priority: Priority.high,
                 icon: '@mipmap/ic_launcher',
@@ -140,7 +159,6 @@ class AppColors {
 }
 
 class BoxSmartApp extends StatelessWidget {
-  // 👇 Variáveis para receber os dados do main()
   final bool logado;
   final int clienteId;
   final String clienteNome;
@@ -172,9 +190,6 @@ class BoxSmartApp extends StatelessWidget {
           ),
         ),
       ),
-      // 👇 MÁGICA ACONTECE AQUI:
-      // Se ele encontrou a sessão (logado = true), pula direto pra Home!
-      // Se não encontrou, manda pra tela de Auth (Login).
       home: logado
           ? HomeScreen(
         clienteId: clienteId,
@@ -312,7 +327,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _buscarDadosPerfil();
-    // Registra/atualiza o Token Push assim que a tela de perfil carregar
     PushNotificationService.inicializar(widget.token, baseUrl);
   }
 

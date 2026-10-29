@@ -74,12 +74,35 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> with SingleTick
             _ofertas = data.where((item) => item['tipo'] == 'oferta').toList();
             _carregando = false;
           });
+
+          // 🌟 MARCA AUTOMATICAMENTE COMO LIDAS ASSIM QUE O USUÁRIO ABRE A TELA
+          for (var item in data) {
+            if (item['lida'] == false || item['lida'] == null) {
+              item['lida'] = true;
+              _marcarComoLidaNaApi(item['id']);
+            }
+          }
         }
       } else {
         if (mounted) setState(() => _carregando = false);
       }
     } catch (e) {
       if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  // Helper separado para enviar o PATCH para a API sem travar a UI
+  Future<void> _marcarComoLidaNaApi(dynamic notifId) async {
+    try {
+      await http.patch(
+        Uri.parse('${widget.baseUrl}/clientes/${widget.clienteId}/notificacoes/$notifId/lida'),
+        headers: {
+          'Authorization': 'Bearer ${widget.token}',
+          'Content-Type': 'application/json',
+        },
+      );
+    } catch (e) {
+      debugPrint('Erro ao marcar notificação $notifId como lida: $e');
     }
   }
 
