@@ -22,7 +22,7 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
   List<dynamic> _categorias = [];
   List<dynamic> _subcategorias = [];
   bool _isLoading = true;
-  bool _mostrarKpis = true; // 🌟 Controle para expandir/colapsar os KPIs e maximizar a área dos produtos
+  bool _mostrarKpis = true; // 🌟 Controle para expandir/colapsar os KPIs
 
   final TextEditingController _buscaController = TextEditingController();
   String _termoBusca = '';
@@ -480,7 +480,6 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
     }).toList();
 
     return Padding(
-      // Padding externo levemente reduzido para aproveitar mais espaço
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -489,29 +488,34 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Gestão de Produtos e Curadoria',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.4,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Gestão de Produtos',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.4,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Organize preços, estoque e faça a curadoria visual do catálogo.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                  ),
-                ],
+                    SizedBox(height: 2),
+                    Text(
+                      'Organize preços, estoque e faça a curadoria visual do catálogo.',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1E3A8A),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   elevation: 0,
                 ),
@@ -526,13 +530,13 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
           ),
           const SizedBox(height: 14),
 
-          // 2. CARDS KPIS (Agora colapsáveis para maximizar a área de produtos)
+          // 2. CARDS KPIS
           if (_mostrarKpis) ...[
             _buildKpiGrid(),
             const SizedBox(height: 14),
           ],
 
-          // 3. PAINEL DE FERRAMENTAS E FILTROS
+          // 3. PAINEL DE FERRAMENTAS E FILTROS (Blindado contra Overflow com rolagem horizontal interna se necessário)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -573,58 +577,9 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 12),
-
-                    // 🌟 BOTÃO DE FILTRO DE PREÇO CLUBE
-                    FilterChip(
-                      avatar: Icon(
-                        Icons.workspace_premium_rounded,
-                        size: 16,
-                        color: _filtroComClube ? Colors.white : const Color(0xFFD97706),
-                      ),
-                      label: Text(_filtroComClube ? 'Com Preço Clube ($_totalOfertasClube)' : 'Apenas Preço Clube'),
-                      selected: _filtroComClube,
-                      selectedColor: const Color(0xFFD97706),
-                      backgroundColor: const Color(0xFFFEF3C7),
-                      labelStyle: TextStyle(
-                        color: _filtroComClube ? Colors.white : const Color(0xFF92400E),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      showCheckmark: false,
-                      onSelected: (selected) {
-                        setState(() => _filtroComClube = selected);
-                      },
-                    ),
                     const SizedBox(width: 8),
 
-                    // 🌟 BOTÃO DE CURADORIA RÁPIDA (FILTRO DE SEM FOTO)
-                    FilterChip(
-                      avatar: Icon(
-                        Icons.image_not_supported_outlined,
-                        size: 16,
-                        color: _filtroSemFoto ? Colors.white : const Color(0xFF1E3A8A),
-                      ),
-                      label: const Text('Apenas Sem Foto / Pendentes'),
-                      selected: _filtroSemFoto,
-                      selectedColor: const Color(0xFF1E3A8A),
-                      backgroundColor: const Color(0xFFEFF6FF),
-                      labelStyle: TextStyle(
-                        color: _filtroSemFoto ? Colors.white : const Color(0xFF1E3A8A),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      showCheckmark: false,
-                      onSelected: (selected) {
-                        setState(() => _filtroSemFoto = selected);
-                        _carregarDados();
-                      },
-                    ),
-                    const SizedBox(width: 8),
-
-                    // 🌟 BOTÃO PARA OCULTAR/MOSTRAR OS KPIS (MAXIMIZAR ESPAÇO)
+                    // 🌟 BOTÃO PARA OCULTAR/MOSTRAR OS KPIS
                     IconButton(
                       style: IconButton.styleFrom(
                         backgroundColor: _mostrarKpis ? const Color(0xFFEFF6FF) : const Color(0xFFF1F5F9),
@@ -646,7 +601,61 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
+
+                // 🌟 FILTROS RÁPIDOS EM CHIPS COM ROLAGEM HORIZONTAL SEGURA
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      FilterChip(
+                        avatar: Icon(
+                          Icons.workspace_premium_rounded,
+                          size: 16,
+                          color: _filtroComClube ? Colors.white : const Color(0xFFD97706),
+                        ),
+                        label: Text(_filtroComClube ? 'Com Preço Clube ($_totalOfertasClube)' : 'Apenas Preço Clube'),
+                        selected: _filtroComClube,
+                        selectedColor: const Color(0xFFD97706),
+                        backgroundColor: const Color(0xFFFEF3C7),
+                        labelStyle: TextStyle(
+                          color: _filtroComClube ? Colors.white : const Color(0xFF92400E),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        showCheckmark: false,
+                        onSelected: (selected) {
+                          setState(() => _filtroComClube = selected);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        avatar: Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 16,
+                          color: _filtroSemFoto ? Colors.white : const Color(0xFF1E3A8A),
+                        ),
+                        label: const Text('Apenas Sem Foto / Pendentes'),
+                        selected: _filtroSemFoto,
+                        selectedColor: const Color(0xFF1E3A8A),
+                        backgroundColor: const Color(0xFFEFF6FF),
+                        labelStyle: TextStyle(
+                          color: _filtroSemFoto ? Colors.white : const Color(0xFF1E3A8A),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        showCheckmark: false,
+                        onSelected: (selected) {
+                          setState(() => _filtroSemFoto = selected);
+                          _carregarDados();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
 
                 // Chips de Categorias
                 SingleChildScrollView(
@@ -702,7 +711,7 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
           ),
           const SizedBox(height: 14),
 
-          // 4. TABELA / LISTAGEM DE PRODUTOS (Área Expandida)
+          // 4. TABELA / LISTAGEM DE PRODUTOS EMPILHADA (Igual ao padrão robusto de Pedidos)
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -740,17 +749,19 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
                   final String imgUrl = produto['imagem_url'] ?? '';
                   final bool semFoto = imgUrl.isEmpty || imgUrl.contains('6tJyuYb.png');
 
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Imagem do Produto com Badge de sem foto
                         Stack(
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(10),
                               child: Container(
-                                width: 60,
-                                height: 60,
+                                width: 50,
+                                height: 50,
                                 color: const Color(0xFFF8FAFC),
                                 child: !semFoto
                                     ? Image.network(
@@ -759,7 +770,7 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
                                   errorBuilder: (context, error, stackTrace) =>
                                   const Icon(Icons.broken_image_outlined, color: Colors.grey),
                                 )
-                                    : const Icon(Icons.add_a_photo_outlined, color: Color(0xFF94A3B8), size: 26),
+                                    : const Icon(Icons.add_a_photo_outlined, color: Color(0xFF94A3B8), size: 22),
                               ),
                             ),
                             if (semFoto)
@@ -767,15 +778,16 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
                                 top: 0,
                                 right: 0,
                                 child: Container(
-                                  padding: const EdgeInsets.all(3),
+                                  padding: const EdgeInsets.all(2),
                                   decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                  child: const Icon(Icons.priority_high, size: 10, color: Colors.white),
+                                  child: const Icon(Icons.priority_high, size: 8, color: Colors.white),
                                 ),
                               ),
                           ],
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
 
+                        // 🌟 COLUNA VERTICAL EMPILHADA SEGURA CONTRA OVERFLOW
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -784,27 +796,31 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
                                 produto['nome'] ?? 'Produto',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                                  fontSize: 13,
                                   color: Color(0xFF1E293B),
                                 ),
-                                maxLines: 2,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 4),
-                              Row(
+                              const SizedBox(height: 3),
+
+                              // Linha de Preços com Wrap para garantir quebra correta se necessário
+                              Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 8,
+                                runSpacing: 2,
                                 children: [
                                   Text(
                                     _formatoMoeda.format(preco),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                       color: Color(0xFF0F172A),
-                                      fontSize: 13,
+                                      fontSize: 12,
                                     ),
                                   ),
-                                  if (precoClube != null && precoClube > 0) ...[
-                                    const SizedBox(width: 8),
+                                  if (precoClube != null && precoClube > 0)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFEF3C7),
                                         borderRadius: BorderRadius.circular(4),
@@ -812,61 +828,82 @@ class _GerenciarProdutosTabState extends State<GerenciarProdutosTab> {
                                       child: Text(
                                         'Clube: ${_formatoMoeda.format(precoClube)}',
                                         style: const TextStyle(
-                                          fontSize: 10,
+                                          fontSize: 9,
                                           fontWeight: FontWeight.bold,
                                           color: Color(0xFFD97706),
                                         ),
                                       ),
                                     ),
-                                  ],
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Setor: ${produto['categoria'] ?? 'Geral'}',
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+
+                              Text(
+                                'Setor: ${produto['categoria'] ?? 'Geral'}',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Linha Inferior: Estoque e Botões de Ação isolados
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: estoqueCritico ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: estoqueCritico ? const Color(0xFFFCA5A5) : const Color(0xFFA7F3D0),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Estoque: $estoque ${produto['unidade'] ?? 'un'}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: estoqueCritico ? const Color(0xFFB91C1C) : const Color(0xFF047857),
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        height: 28,
+                                        width: 28,
+                                        child: IconButton(
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: const Color(0xFFEFF6FF),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF1E3A8A), size: 15),
+                                          tooltip: 'Editar Produto/Imagem',
+                                          onPressed: () => _exibirFormularioProduto(produtoExistente: produto),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        height: 28,
+                                        width: 28,
+                                        child: IconButton(
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: const Color(0xFFFEF2F2),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                          icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 15),
+                                          tooltip: 'Excluir',
+                                          onPressed: () => _deletarProduto(produto['id'], produto['nome']),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 16),
-
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: estoqueCritico ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: estoqueCritico ? const Color(0xFFFCA5A5) : const Color(0xFFA7F3D0),
-                                ),
-                              ),
-                              child: Text(
-                                '$estoque ${produto['unidade'] ?? 'un'}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: estoqueCritico ? const Color(0xFFB91C1C) : const Color(0xFF047857),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            IconButton(
-                              style: IconButton.styleFrom(backgroundColor: const Color(0xFFEFF6FF)),
-                              icon: const Icon(Icons.edit_outlined, color: Color(0xFF1E3A8A), size: 20),
-                              tooltip: 'Editar Produto/Imagem',
-                              onPressed: () => _exibirFormularioProduto(produtoExistente: produto),
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton(
-                              style: IconButton.styleFrom(backgroundColor: const Color(0xFFFEF2F2)),
-                              icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 20),
-                              tooltip: 'Excluir',
-                              onPressed: () => _deletarProduto(produto['id'], produto['nome']),
-                            ),
-                          ],
                         ),
                       ],
                     ),

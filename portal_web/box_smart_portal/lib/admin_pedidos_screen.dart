@@ -368,132 +368,129 @@ class _AdminPedidosScreenState extends State<AdminPedidosScreen> {
                 itemCount: pedidosFiltrados.length,
                 separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 itemBuilder: (context, index) {
-                  final p = pedidosFiltrados[index];
-                  final String rawStatus = (p['status'] ?? 'PENDENTE').toString();
-                  final double total = double.tryParse(p['total']?.toString() ?? '0') ?? 0.0;
+                  final pedido = pedidosFiltrados[index];
+                  final rawStatus = (pedido['status'] ?? 'PENDENTE').toString();
+                  final totalPedido = double.tryParse(pedido['total']?.toString() ?? '0') ?? 0.0;
 
-                  String nomeCliente = 'Cliente ID: ${p['cliente_id'] ?? 'N/A'}';
-                  if (p['cliente_nome'] != null && p['cliente_nome'].toString().isNotEmpty) {
-                    nomeCliente = p['cliente_nome'].toString();
-                  } else if (p['cliente'] is Map) {
-                    nomeCliente = p['cliente']['nome'] ?? p['cliente']['razao_social'] ?? nomeCliente;
+                  String nomeCliente = 'Cliente ID: ${pedido['cliente_id']}';
+                  if (pedido['cliente'] is Map) {
+                    nomeCliente = pedido['cliente']['nome'] ?? pedido['cliente']['razao_social'] ?? nomeCliente;
                   }
 
                   final Color corTexto = _obterCorStatus(rawStatus);
                   final Color corFundo = _obterBgCorStatus(rawStatus);
 
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    onTap: () => _abrirDetalhesGestor(p),
-                    leading: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: corFundo,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: corTexto.withOpacity(0.3)),
-                      ),
-                      child: Icon(
-                        Icons.receipt_long_rounded,
-                        color: corTexto,
-                        size: 22,
-                      ),
-                    ),
-                    title: Row(
-                      children: [
-                        Text(
-                          'Pedido #${p['id']}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
-                        ),
-                        const SizedBox(width: 10),
-                        if (p['eh_membro_clube'] == true)
+                  return InkWell(
+                    onTap: () => _abrirDetalhesGestor(pedido),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            width: 38,
+                            height: 38,
+                            margin: const EdgeInsets.only(top: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF5F3FF),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: const Color(0xFFDDD6FE)),
+                              color: corFundo,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: corTexto.withOpacity(0.3)),
                             ),
-                            child: const Text(
-                              'Membro Clube',
-                              style: TextStyle(color: Color(0xFF7C3AED), fontSize: 10, fontWeight: FontWeight.bold),
+                            child: Icon(
+                              Icons.receipt_long_rounded,
+                              color: corTexto,
+                              size: 18,
                             ),
                           ),
-                      ],
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Row(
-                        children: [
-                          Text(
-                            'Cliente: $nomeCliente',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                          const SizedBox(width: 12),
+                          // 🌟 COLUNA PRINCIPAL ORGANIZADA VERTICALMENTE SEM CONFLITO HORIZONTAL
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Linha Superior: Apenas o Número do Pedido (sem espremer preço)
+                                Text(
+                                  'Pedido #${pedido['id']}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B)),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 3),
+                                // Segunda Linha: Nome do Cliente
+                                Text(
+                                  'Cliente: $nomeCliente',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                // Terceira Linha: Status à esquerda e Preço destacado à direita (ou vice-versa) com total segurança
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: corFundo,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: corTexto.withOpacity(0.4)),
+                                      ),
+                                      child: Text(
+                                        _formatarStatus(rawStatus),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: corTexto,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatoMoeda.format(totalPedido),
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              _formatoMoeda.format(total),
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          // Botão de Opções isolado no canto direito
+                          SizedBox(
+                            height: 30,
+                            width: 30,
+                            child: PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF64748B), size: 18),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onSelected: (valor) {
+                                if (valor == 'detalhes') {
+                                  _abrirDetalhesGestor(pedido);
+                                } else {
+                                  _atualizarStatus(pedido['id'], valor);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'detalhes',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.visibility_outlined, size: 16, color: Color(0xFF1E3A8A)),
+                                      SizedBox(width: 8),
+                                      Text('Ver Detalhes', style: TextStyle(fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuDivider(),
+                                const PopupMenuItem(value: 'PENDENTE', child: Text('Mudar para Pendente', style: TextStyle(fontSize: 12))),
+                                const PopupMenuItem(value: 'EM_SEPARACAO', child: Text('Mudar para Em Separação', style: TextStyle(fontSize: 12))),
+                                const PopupMenuItem(value: 'SAIU_PARA_ENTREGA', child: Text('Mudar para Saiu p/ Entrega', style: TextStyle(fontSize: 12))),
+                                const PopupMenuItem(value: 'CONCLUIDO', child: Text('Mudar para Concluído', style: TextStyle(fontSize: 12))),
+                                const PopupMenuItem(value: 'CANCELADO', child: Text('Mudar para Cancelado', style: TextStyle(fontSize: 12))),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Badge de Status
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: corFundo,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: corTexto.withOpacity(0.4)),
-                          ),
-                          child: Text(
-                            _formatarStatus(rawStatus),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: corTexto,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF64748B)),
-                          onSelected: (acaoOuStatus) {
-                            if (acaoOuStatus == 'detalhes') {
-                              _abrirDetalhesGestor(p);
-                            } else {
-                              _atualizarStatus(p['id'], acaoOuStatus);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'detalhes',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF1E3A8A)),
-                                  SizedBox(width: 8),
-                                  Text('Ver Detalhes Completos'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuDivider(),
-                            const PopupMenuItem(value: 'PENDENTE', child: Text('Marcar como Pendente')),
-                            const PopupMenuItem(value: 'EM_SEPARACAO', child: Text('Marcar como Em Separação')),
-                            const PopupMenuItem(value: 'SAIU_PARA_ENTREGA', child: Text('Marcar como Saiu p/ Entrega')),
-                            const PopupMenuItem(value: 'CONCLUIDO', child: Text('Marcar como Concluído')),
-                            const PopupMenuItem(value: 'CANCELADO', child: Text('Marcar como Cancelado')),
-                          ],
-                        ),
-                      ],
                     ),
                   );
                 },

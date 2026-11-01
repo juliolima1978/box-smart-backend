@@ -13,9 +13,9 @@ class AdminProdutosTab extends StatefulWidget {
 
 class _AdminProdutosTabState extends State<AdminProdutosTab> {
   List<dynamic> _produtos = [];
-  List<dynamic> _categorias = []; // 🌟 Lista para armazenar as categorias
+  List<dynamic> _categorias = [];
   bool _carregando = true;
-  String _categoriaSelecionada = 'Todas'; // 🌟 Filtro atual
+  String _categoriaSelecionada = 'Todas';
 
   @override
   void initState() {
@@ -23,7 +23,6 @@ class _AdminProdutosTabState extends State<AdminProdutosTab> {
     _carregarDadosIniciais();
   }
 
-  // 🌟 Carrega produtos e categorias simultaneamente
   Future<void> _carregarDadosIniciais() async {
     setState(() => _carregando = true);
     await Future.wait([
@@ -49,7 +48,6 @@ class _AdminProdutosTabState extends State<AdminProdutosTab> {
     }
   }
 
-  // 🌟 Nova função para buscar as categorias cadastradas
   Future<void> _buscarCategorias() async {
     try {
       final response = await http.get(Uri.parse('${widget.baseUrl}/categorias/'));
@@ -64,6 +62,47 @@ class _AdminProdutosTabState extends State<AdminProdutosTab> {
       if (mounted) {
         setState(() => _carregando = false);
       }
+    }
+  }
+
+  Future<void> _deletarProduto(int id) async {
+    bool confirmar = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Exclusão'),
+        content: const Text('Deseja realmente excluir este produto do catálogo?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirmar) return;
+
+    try {
+      final response = await http.delete(Uri.parse('${widget.baseUrl}/admin/produtos/$id'));
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _carregarDadosIniciais();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Produto excluído com sucesso!'), backgroundColor: Colors.green),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao excluir: ${response.statusCode}'), backgroundColor: Colors.red.shade900),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro de conexão: $e'), backgroundColor: Colors.red.shade900),
+      );
     }
   }
 
@@ -192,7 +231,7 @@ class _AdminProdutosTabState extends State<AdminProdutosTab> {
                   child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
                   onPressed: () async {
                     final payload = {
                       "nome": nomeCtrl.text,
@@ -225,6 +264,7 @@ class _AdminProdutosTabState extends State<AdminProdutosTab> {
                       }
 
                       if (response.statusCode == 200 || response.statusCode == 201) {
+                        if (!context.mounted) return;
                         Navigator.pop(context);
                         _carregarDadosIniciais();
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -239,6 +279,7 @@ class _AdminProdutosTabState extends State<AdminProdutosTab> {
                           if (response.body.isNotEmpty) mensagemErro = response.body;
                         }
 
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(mensagemErro), backgroundColor: Colors.red.shade900, duration: const Duration(seconds: 5)),
                         );
@@ -264,17 +305,14 @@ class _AdminProdutosTabState extends State<AdminProdutosTab> {
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 Filtra os produtos com base na categoria selecionada
     final produtosFiltrados = _produtos.where((produto) {
       if (_categoriaSelecionada == 'Todas') return true;
-      // Compara pelo nome da categoria (garanta que o JSON do produto traga o 'categoria_nome' ou 'categoria')
-      // Caso o seu backend retorne apenas o ID, podemos comparar com o ID da categoria correspondente.
       final catNome = produto['categoria_nome'] ?? produto['categoria']?['nome'] ?? '';
       return catNome == _categoriaSelecionada;
     }).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -282,43 +320,58 @@ class _AdminProdutosTabState extends State<AdminProdutosTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Gestão de Produtos', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
-                  SizedBox(height: 4),
-                  Text('Controle o catálogo, estoque e os preços exclusivos do clube Box Prime.', style: TextStyle(color: Colors.grey)),
-                ],
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Gestão de Produtos',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -0.4),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Controle o catálogo e preços do clube.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  backgroundColor: const Color(0xFF1E3A8A),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
                 ),
                 onPressed: () => _exibirFormularioProduto(),
-                icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text('Novo Produto', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.add, color: Colors.white, size: 16),
+                label: const Text('Novo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
 
-          // 🌟 BARRA DE FILTRO POR CATEGORIAS (Horizontal)
+          // Barra de filtro por categorias
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
+                  padding: const EdgeInsets.only(right: 6.0),
                   child: ChoiceChip(
-                    label: const Text('Todas'),
+                    label: const Text('Todas', style: TextStyle(fontSize: 11)),
                     selected: _categoriaSelecionada == 'Todas',
                     selectedColor: const Color(0xFF1E3A8A),
+                    backgroundColor: const Color(0xFFF1F5F9),
                     labelStyle: TextStyle(
-                      color: _categoriaSelecionada == 'Todas' ? Colors.white : Colors.black87,
+                      color: _categoriaSelecionada == 'Todas' ? Colors.white : const Color(0xFF475569),
                       fontWeight: FontWeight.bold,
                     ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide.none),
+                    showCheckmark: false,
+                    visualDensity: VisualDensity.compact,
                     onSelected: (selected) {
                       setState(() => _categoriaSelecionada = 'Todas');
                     },
@@ -328,15 +381,19 @@ class _AdminProdutosTabState extends State<AdminProdutosTab> {
                   final nomeCat = cat['nome'] ?? '';
                   final selecionado = _categoriaSelecionada == nomeCat;
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
+                    padding: const EdgeInsets.only(right: 6.0),
                     child: ChoiceChip(
-                      label: Text(nomeCat),
+                      label: Text(nomeCat, style: const TextStyle(fontSize: 11)),
                       selected: selecionado,
                       selectedColor: const Color(0xFF1E3A8A),
+                      backgroundColor: const Color(0xFFF1F5F9),
                       labelStyle: TextStyle(
-                        color: selecionado ? Colors.white : Colors.black87,
+                        color: selecionado ? Colors.white : const Color(0xFF475569),
                         fontWeight: FontWeight.bold,
                       ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide.none),
+                      showCheckmark: false,
+                      visualDensity: VisualDensity.compact,
                       onSelected: (selected) {
                         setState(() => _categoriaSelecionada = nomeCat);
                       },
@@ -346,98 +403,157 @@ class _AdminProdutosTabState extends State<AdminProdutosTab> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-          // Tabela de Dados Atualizada com os Produtos Filtrados
+          // Listagem de Produtos com Layout Empilhado (Idêntico ao padrão dos Pedidos)
           Expanded(
-            child: _carregando
-                ? const Center(child: CircularProgressIndicator())
-                : produtosFiltrados.isEmpty
-                ? const Center(child: Text('Nenhum produto encontrado para esta categoria.'))
-                : Container(
-              width: double.infinity,
+            child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowColor: WidgetStateProperty.resolveWith((states) => Colors.grey.shade50),
-                    columns: const [
-                      DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Produto', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Preço Padrão', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Preço Prime', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Unidade', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Ações', style: TextStyle(fontWeight: FontWeight.bold))),
-                    ],
-                    rows: produtosFiltrados.map((produto) {
-                      final preco = produto['preco'] != null ? double.parse(produto['preco'].toString()).toStringAsFixed(2) : '0.00';
-                      final precoClube = produto['preco_clube'] != null ? double.parse(produto['preco_clube'].toString()).toStringAsFixed(2) : '-';
+              child: _carregando
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF1E3A8A)))
+                  : produtosFiltrados.isEmpty
+                  ? const Center(child: Text('Nenhum produto encontrado.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)))
+                  : ListView.separated(
+                itemCount: produtosFiltrados.length,
+                separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                itemBuilder: (context, index) {
+                  final produto = produtosFiltrados[index];
+                  final preco = produto['preco'] != null ? double.parse(produto['preco'].toString()).toStringAsFixed(2) : '0.00';
+                  final precoClube = produto['preco_clube'] != null ? double.parse(produto['preco_clube'].toString()).toStringAsFixed(2) : null;
+                  final estoque = produto['estoque']?.toString() ?? '0';
+                  final unidade = produto['unidade'] ?? 'un';
+                  final categoriaNome = produto['categoria_nome'] ?? produto['categoria']?['nome'] ?? 'Geral';
 
-                      return DataRow(
-                        cells: [
-                          DataCell(Text(produto['id'].toString(), style: const TextStyle(color: Colors.grey))),
-                          DataCell(
-                            Row(
-                              children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  margin: const EdgeInsets.only(right: 12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(6),
+                  final estoqueInt = int.tryParse(estoque) ?? 0;
+                  final isEstoqueBaixo = estoqueInt <= 5;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Imagem do Produto
+                        Container(
+                          width: 40,
+                          height: 40,
+                          margin: const EdgeInsets.only(top: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: produto['imagem_url'] != null && produto['imagem_url'].toString().isNotEmpty
+                              ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(produto['imagem_url'], fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 18, color: Colors.grey)),
+                          )
+                              : const Icon(Icons.inventory_2, color: Color(0xFF64748B), size: 18),
+                        ),
+                        const SizedBox(width: 12),
+
+                        // 🌟 COLUNA VERTICAL EMPILHADA (Igualzinho à tela de pedidos)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Linha 1: Nome do Produto
+                              Text(
+                                produto['nome'] ?? 'Sem nome',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 3),
+
+                              // Linha 2: Preços (Normal e Clube)
+                              Row(
+                                children: [
+                                  Text(
+                                    'R\$ $preco',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                                   ),
-                                  child: produto['imagem_url'] != null && produto['imagem_url'].toString().isNotEmpty
-                                      ? Image.network(produto['imagem_url'], fit: BoxFit.contain, errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 20, color: Colors.grey))
-                                      : const Icon(Icons.inventory_2, color: Colors.grey, size: 20),
-                                ),
-                                SizedBox(
-                                  width: 250,
-                                  child: Text(produto['nome'] ?? 'Sem nome', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500)),
-                                ),
-                              ],
-                            ),
+                                  if (precoClube != null) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(4)),
+                                      child: Text('Clube: R\$ $precoClube', style: const TextStyle(color: Color(0xFFD97706), fontWeight: FontWeight.bold, fontSize: 10)),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+
+                              // Linha 3: Categoria / Setor
+                              Text(
+                                'Setor: $categoriaNome',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 6),
+
+                              // Linha 4: Estoque à esquerda e Ações (Editar/Excluir) à direita
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isEstoqueBaixo ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5),
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: isEstoqueBaixo ? const Color(0xFFFCA5A5) : const Color(0xFFA7F3D0)),
+                                    ),
+                                    child: Text(
+                                      'Estoque: $estoque $unidade',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: isEstoqueBaixo ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        height: 24,
+                                        width: 24,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF1E3A8A), size: 16),
+                                          tooltip: 'Editar',
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () => _exibirFormularioProduto(produto),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      SizedBox(
+                                        height: 24,
+                                        width: 24,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444), size: 16),
+                                          tooltip: 'Excluir',
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () => _deletarProduto(produto['id']),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          DataCell(Text('R\$ $preco')),
-                          DataCell(
-                            produto['preco_clube'] != null
-                                ? Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(4)),
-                              child: Text('R\$ $precoClube', style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.bold)),
-                            )
-                                : const Text('-', style: TextStyle(color: Colors.grey)),
-                          ),
-                          DataCell(Text(produto['unidade'] ?? 'un')),
-                          DataCell(
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined, color: Colors.blue),
-                                  tooltip: 'Editar Produto',
-                                  onPressed: () => _exibirFormularioProduto(produto),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                  tooltip: 'Remover Produto',
-                                  onPressed: () {
-                                    // Função de deletar
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ),

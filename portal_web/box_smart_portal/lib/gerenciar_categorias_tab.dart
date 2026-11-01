@@ -19,6 +19,7 @@ class GerenciarCategoriasTab extends StatefulWidget {
 class _GerenciarCategoriasTabState extends State<GerenciarCategoriasTab> {
   List<dynamic> _categorias = [];
   bool _isLoading = true;
+  bool _mostrarFiltros = true; // 👁️ Estado para alternar a visibilidade do topo
 
   final TextEditingController _buscaController = TextEditingController();
   String _termoBusca = '';
@@ -27,6 +28,12 @@ class _GerenciarCategoriasTabState extends State<GerenciarCategoriasTab> {
   void initState() {
     super.initState();
     _carregarCategorias();
+  }
+
+  @override
+  void dispose() {
+    _buscaController.dispose();
+    super.dispose();
   }
 
   Future<void> _carregarCategorias() async {
@@ -316,88 +323,144 @@ class _GerenciarCategoriasTabState extends State<GerenciarCategoriasTab> {
     }).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. CABEÇALHO
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Gerenciar Categorias',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -0.4),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Organize os departamentos e seções exibidos no aplicativo.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E3A8A),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-                onPressed: () => _exibirFormularioCategoria(),
-                icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
-                label: const Text('Nova Categoria', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // 2. CARDS KPIs
-          _buildKpiGrid(),
-          const SizedBox(height: 20),
-
-          // 3. BARRA DE BUSCA
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
+          // 👁️ PAINEL SUPERIOR COLAPSÁVEL (Cabeçalho, KPIs e Busca)
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 250),
+            crossFadeState: _mostrarFiltros ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            firstChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _buscaController,
-                    decoration: InputDecoration(
-                      hintText: 'Buscar categoria por nome...',
-                      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5)),
+                // 1. CABEÇALHO 100% RESPONSIVO
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Gerenciar Categorias',
+                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -0.4),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Organize os departamentos e seções exibidos no aplicativo.',
+                            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
-                    onChanged: (valor) {
-                      setState(() => _termoBusca = valor.trim());
-                    },
+                    const SizedBox(width: 8),
+                    Row(
+                      children: [
+                        // 👁️ BOTÃO DE OLHO
+                        IconButton(
+                          icon: Icon(
+                            _mostrarFiltros ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                            color: const Color(0xFF334155),
+                          ),
+                          tooltip: _mostrarFiltros ? 'Ocultar Cabeçalho/Filtros' : 'Mostrar Cabeçalho/Filtros',
+                          onPressed: () {
+                            setState(() {
+                              _mostrarFiltros = !_mostrarFiltros;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E3A8A),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            elevation: 0,
+                          ),
+                          onPressed: () => _exibirFormularioCategoria(),
+                          icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                          label: const Text('Nova Categoria', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // 2. CARDS KPIS
+                _buildKpiGrid(),
+                const SizedBox(height: 14),
+
+                // 3. BARRA DE BUSCA
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _buscaController,
+                          decoration: InputDecoration(
+                            hintText: 'Buscar categoria por nome...',
+                            hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                            prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5)),
+                          ),
+                          onChanged: (valor) {
+                            setState(() => _termoBusca = valor.trim());
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.refresh_rounded, color: Color(0xFF334155)),
+                        onPressed: _carregarCategorias,
+                        tooltip: 'Atualizar Categorias',
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                IconButton(
-                  icon: const Icon(Icons.refresh_rounded, color: Color(0xFF334155)),
-                  onPressed: _carregarCategorias,
-                  tooltip: 'Atualizar Categorias',
+                const SizedBox(height: 14),
+              ],
+            ),
+            secondChild: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // 👁️ Botão de olho flutuante quando o topo estiver oculto
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _mostrarFiltros = !_mostrarFiltros;
+                    });
+                  },
+                  icon: const Icon(Icons.visibility_rounded, color: Color(0xFF1E3A8A), size: 18),
+                  label: const Text('Mostrar Cabeçalho e Filtros', style: TextStyle(color: Color(0xFF1E3A8A), fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
 
-          // 4. LISTAGEM DE CATEGORIAS
+          // 4. LISTAGEM DE CATEGORIAS EMPILHADA (Expandida para ocupar o espaço livre)
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -425,102 +488,137 @@ class _GerenciarCategoriasTabState extends State<GerenciarCategoriasTab> {
                   final int ordem = cat['ordem'] ?? 0;
                   final bool ativa = cat['ativo'] ?? true;
 
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    leading: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: corFundo,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: (imagemUrl != null && imagemUrl.startsWith('http'))
-                          ? ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.network(
-                          imagemUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Icon(Icons.storefront_rounded, color: corIcone, size: 22),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Ícone / Imagem da Categoria
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: corFundo,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: (imagemUrl != null && imagemUrl.startsWith('http'))
+                              ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              imagemUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(Icons.storefront_rounded, color: corIcone, size: 22),
+                            ),
+                          )
+                              : Icon(Icons.storefront_rounded, color: corIcone, size: 22),
                         ),
-                      )
-                          : Icon(Icons.storefront_rounded, color: corIcone, size: 22),
-                    ),
-                    title: Text(
-                      cat['nome'] ?? 'Categoria',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'ID: $id',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'Ordem: $ordem',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
-                            ),
-                          ),
-                          if (imagemUrl != null && imagemUrl.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                imagemUrl,
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                        const SizedBox(width: 12),
+
+                        // 🌟 ESTRUTURA VERTICAL EMPILHADA SEGURA
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                cat['nome'] ?? 'Categoria',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Color(0xFF1E293B),
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Badge de Status Ativo/Oculto
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: ativa ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: ativa ? const Color(0xFFA7F3D0) : const Color(0xFFFCA5A5)),
+                              const SizedBox(height: 4),
+
+                              // Linha de Detalhes (ID e Ordem)
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'ID: $id',
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'Ordem: $ordem',
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Linha Inferior: Badge de Status e Botões de Ação
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: ativa ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: ativa ? const Color(0xFFA7F3D0) : const Color(0xFFFCA5A5)),
+                                    ),
+                                    child: Text(
+                                      ativa ? 'Ativo' : 'Oculto',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: ativa ? const Color(0xFF047857) : const Color(0xFFB91C1C),
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        height: 28,
+                                        width: 28,
+                                        child: IconButton(
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: const Color(0xFFEFF6FF),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF1E3A8A), size: 15),
+                                          tooltip: 'Editar',
+                                          onPressed: () => _exibirFormularioCategoria(cat),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        height: 28,
+                                        width: 28,
+                                        child: IconButton(
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: const Color(0xFFFEF2F2),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                          icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 15),
+                                          tooltip: 'Excluir',
+                                          onPressed: () => _deletarCategoria(id, cat['nome'] ?? ''),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            ativa ? 'Ativo' : 'Oculto',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: ativa ? const Color(0xFF047857) : const Color(0xFFB91C1C),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF1E3A8A), size: 20),
-                          tooltip: 'Editar',
-                          onPressed: () => _exibirFormularioCategoria(cat),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 20),
-                          tooltip: 'Excluir',
-                          onPressed: () => _deletarCategoria(id, cat['nome'] ?? ''),
                         ),
                       ],
                     ),

@@ -22,6 +22,7 @@ class _RelatorioCurvaAbcTabState extends State<RelatorioCurvaAbcTab> {
   Map<String, dynamic> _resumoClasses = {};
   double _receitaGlobal = 0.0;
   bool _isLoading = true;
+  bool _mostrarFiltros = true; // 👁️ Estado para alternar a visibilidade do topo
 
   String _filtroClasse = 'TODAS'; // 'TODAS', 'A', 'B', 'C'
   final TextEditingController _buscaController = TextEditingController();
@@ -36,6 +37,12 @@ class _RelatorioCurvaAbcTabState extends State<RelatorioCurvaAbcTab> {
   void initState() {
     super.initState();
     _carregarRelatorioAbc();
+  }
+
+  @override
+  void dispose() {
+    _buscaController.dispose();
+    super.dispose();
   }
 
   Future<void> _carregarRelatorioAbc() async {
@@ -73,11 +80,11 @@ class _RelatorioCurvaAbcTabState extends State<RelatorioCurvaAbcTab> {
   Color _corParaClasse(String classe) {
     switch (classe.toUpperCase()) {
       case 'A':
-        return const Color(0xFF10B981); // Emerald Green
+        return const Color(0xFF10B981);
       case 'B':
-        return const Color(0xFF0284C7); // Sky Blue
+        return const Color(0xFF0284C7);
       case 'C':
-        return const Color(0xFFD97706); // Amber / Orange
+        return const Color(0xFFD97706);
       default:
         return const Color(0xFF64748B);
     }
@@ -106,91 +113,151 @@ class _RelatorioCurvaAbcTabState extends State<RelatorioCurvaAbcTab> {
     }).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. CABEÇALHO
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Curva ABC de Produtos (Pareto 80/20)',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.4,
+          // 👁️ PAINEL SUPERIOR COLAPSÁVEL (Cabeçalho, KPIs e Filtros)
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 250),
+            crossFadeState: _mostrarFiltros ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            firstChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. CABEÇALHO 100% RESPONSIVO
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Curva ABC de Produtos (Pareto 80/20)',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.4,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Classificação do portfólio por relevância financeira e giro de vendas.',
+                            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      children: [
+                        // 👁️ BOTÃO DE OLHO
+                        IconButton(
+                          icon: Icon(
+                            _mostrarFiltros ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                            color: const Color(0xFF334155),
+                          ),
+                          tooltip: _mostrarFiltros ? 'Ocultar Cabeçalho/Filtros' : 'Mostrar Cabeçalho/Filtros',
+                          onPressed: () {
+                            setState(() {
+                              _mostrarFiltros = !_mostrarFiltros;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.refresh_rounded, color: Color(0xFF334155)),
+                          onPressed: _carregarRelatorioAbc,
+                          tooltip: 'Atualizar Relatório',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // 2. CARDS KPIs
+                _buildKpiGrid(),
+                const SizedBox(height: 14),
+
+                // 3. FERRAMENTAS E FILTROS DE CLASSE (Com rolagem horizontal para blindar overflow)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _buscaController,
+                        decoration: InputDecoration(
+                          hintText: 'Buscar produto por nome...',
+                          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5)),
+                        ),
+                        onChanged: (valor) {
+                          setState(() => _termoBusca = valor.trim());
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildChipFiltro('Todas as Classes', 'TODAS'),
+                            const SizedBox(width: 8),
+                            _buildChipFiltro('Classe A (Alto Impacto)', 'A'),
+                            const SizedBox(width: 8),
+                            _buildChipFiltro('Classe B (Médio Giro)', 'B'),
+                            const SizedBox(width: 8),
+                            _buildChipFiltro('Classe C (Baixo Giro)', 'C'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
+            ),
+            secondChild: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // 👁️ Botão de olho flutuante quando o topo estiver oculto
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
                     ),
                   ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Classificação do portfólio por relevância financeira e giro de vendas.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, color: Color(0xFF334155)),
-                onPressed: _carregarRelatorioAbc,
-                tooltip: 'Atualizar Relatório',
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // 2. CARDS KPIs
-          _buildKpiGrid(),
-          const SizedBox(height: 20),
-
-          // 3. FERRAMENTAS E FILTROS DE CLASSE
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _buscaController,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar produto por nome...',
-                    hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                    prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5)),
-                  ),
-                  onChanged: (valor) {
-                    setState(() => _termoBusca = valor.trim());
+                  onPressed: () {
+                    setState(() {
+                      _mostrarFiltros = !_mostrarFiltros;
+                    });
                   },
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _buildChipFiltro('Todas as Classes', 'TODAS'),
-                    const SizedBox(width: 8),
-                    _buildChipFiltro('Classe A (Alto Impacto)', 'A'),
-                    const SizedBox(width: 8),
-                    _buildChipFiltro('Classe B (Médio Giro)', 'B'),
-                    const SizedBox(width: 8),
-                    _buildChipFiltro('Classe C (Baixo Giro)', 'C'),
-                  ],
+                  icon: const Icon(Icons.visibility_rounded, color: Color(0xFF1E3A8A), size: 18),
+                  label: const Text('Mostrar Cabeçalho e Filtros', style: TextStyle(color: Color(0xFF1E3A8A), fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
 
-          // 4. TABELA RANQUEADA
+          // 4. TABELA RANQUEADA BLINDADA CONTRA OVERFLOW
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -218,7 +285,7 @@ class _RelatorioCurvaAbcTabState extends State<RelatorioCurvaAbcTab> {
                   final corBg = _bgCorParaClasse(classe);
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -245,12 +312,15 @@ class _RelatorioCurvaAbcTabState extends State<RelatorioCurvaAbcTab> {
                               child: Text(
                                 nome,
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            const SizedBox(width: 8),
 
                             // Badge de Classe
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
                                 color: corBg,
                                 borderRadius: BorderRadius.circular(6),
@@ -258,13 +328,13 @@ class _RelatorioCurvaAbcTabState extends State<RelatorioCurvaAbcTab> {
                               ),
                               child: Text(
                                 'Classe $classe',
-                                style: TextStyle(fontWeight: FontWeight.bold, color: corTexto, fontSize: 11),
+                                style: TextStyle(fontWeight: FontWeight.bold, color: corTexto, fontSize: 10),
                               ),
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 10),
                             Text(
                               _formatoMoeda.format(receita),
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1E3A8A)),
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF1E3A8A)),
                             ),
                           ],
                         ),
@@ -282,17 +352,19 @@ class _RelatorioCurvaAbcTabState extends State<RelatorioCurvaAbcTab> {
                         ),
                         const SizedBox(height: 6),
 
-                        // Detalhes Operacionais
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        // Detalhes Operacionais com Wrap para total segurança horizontal
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 12,
+                          runSpacing: 4,
                           children: [
                             Text(
-                              '$qtdVendida unidades sold',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                              '$qtdVendida unidades vendidas',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                             ),
                             Text(
                               'Part. Indiv: ${percIndiv.toStringAsFixed(1)}% • Acumulado: ${percAcum.toStringAsFixed(1)}%',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
                             ),
                           ],
                         ),
@@ -386,7 +458,15 @@ class _RelatorioCurvaAbcTabState extends State<RelatorioCurvaAbcTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w600)),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)),

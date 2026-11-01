@@ -161,7 +161,15 @@ class _EntregadorScreenState extends State<EntregadorScreen>
       );
 
       if (response.statusCode == 200) {
-        _mostrarSnackBar('Pedido #$pedidoId atualizado com sucesso!');
+        // 🌟 Recarrega os pedidos atualizados do backend
+        await _carregarPedidos();
+
+        // 🌟 SE INICIOU A ROTA, MOVE O ENTREGADOR AUTOMATICAMENTE PARA A ABA 1 ("Em Rota")
+        if ((novoStatus == 'SAIU_PARA_ENTREGA' || novoStatus == 'EM_TRANSITO') && mounted) {
+          setState(() {
+            _tabController.index = 1; // Vai direto para a aba "Em Rota"
+          });
+        }
 
         // 🌟 CONTROLE INTELIGENTE DO RASTREAMENTO POR GPS:
         if (novoStatus == 'SAIU_PARA_ENTREGA' || novoStatus == 'EM_TRANSITO') {
@@ -176,7 +184,7 @@ class _EntregadorScreenState extends State<EntregadorScreen>
           _servicoRastreamento.pararEnvio();
         }
 
-        _carregarPedidos();
+        _mostrarSnackBar('Pedido #$pedidoId atualizado com sucesso!');
       } else {
         final err = jsonDecode(response.body);
         _mostrarSnackBar(

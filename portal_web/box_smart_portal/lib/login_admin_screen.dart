@@ -43,20 +43,15 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
 
-        // 1. Imprima a resposta no console para confirmar quais chaves o backend retorna
         print('Resposta do Login: $data');
 
         final String token = data['access_token'] ?? '';
-
-        // 2. Extrai o perfil e nome (considerando variações comuns do backend)
         final String perfil = (data['perfil'] ?? data['role'] ?? 'cliente').toString().toLowerCase();
         final String nomeApi = (data['nome'] ?? (data['usuario'] is Map ? data['usuario']['nome'] : null) ?? '').toString().trim();
         final String nomeUsuario = nomeApi.isNotEmpty ? nomeApi : _emailController.text.split('@')[0];
 
-
         const perfisPermitidos = ['admin', 'gestor', 'separador', 'entregador'];
 
-        // 🌟 3. SALVA OS DADOS NO SHAREDPREFERENCES
         if (perfisPermitidos.contains(perfil)) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('token', token);
@@ -79,14 +74,26 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
             _errorMessage = 'Acesso negado. A conta ($perfil) não possui permissão operacional.';
           });
         }
+      } else {
+        // 🌟 TRATAMENTO DE ERRO DO BACKEND (Ex: 401 Senha errada, 404 Usuário não encontrado)
+        String mensagemErroApi = 'E-mail ou senha incorretos.';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['detail'] != null) {
+            mensagemErroApi = errorData['detail'].toString();
+          }
+        } catch (_) {}
+
+        setState(() {
+          _errorMessage = mensagemErroApi;
+        });
       }
     } catch (e, stack) {
-      // 🌟 Exibe o erro real no console para ajudar no diagnóstico
       debugPrint('Erro detalhado no login: $e');
       debugPrint('Stacktrace: $stack');
 
       setState(() {
-        _errorMessage = 'Falha ao processar login: ${e.toString()}';
+        _errorMessage = 'Falha ao conectar com o servidor. Verifique sua conexão.';
       });
     } finally {
       if (mounted) {
@@ -186,11 +193,17 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
 
                 // Mensagem de Erro (se houver)
                 if (_errorMessage.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
                     child: Text(
                       _errorMessage,
-                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                      style: TextStyle(color: Colors.red.shade800, fontSize: 13, fontWeight: FontWeight.w500),
                       textAlign: TextAlign.center,
                     ),
                   ),

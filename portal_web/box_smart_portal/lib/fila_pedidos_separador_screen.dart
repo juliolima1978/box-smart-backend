@@ -169,13 +169,17 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
 
     final url = Uri.parse('https://wa.me/$numFormatado?text=${Uri.encodeComponent(textoMensagem)}');
 
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
+    try {
+      await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      debugPrint('Erro ao abrir o WhatsApp: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Não foi possível abrir o WhatsApp.'),
+            content: Text('Não foi possível abrir o WhatsApp. Verifique se o aplicativo está instalado.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -201,12 +205,24 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
       );
 
       if (response.statusCode == 200) {
-        _carregarPedidos();
+        await _carregarPedidos();
+
+        if (novoStatus == 'EM_SEPARACAO' && mounted) {
+          setState(() {
+            _tabController.index = 1;
+          });
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Pedido #$pedidoId atualizado para $novoStatus!'),
+              content: Text(
+                novoStatus == 'EM_SEPARACAO'
+                    ? 'Pedido #$pedidoId movido para Em Separação!'
+                    : 'Pedido #$pedidoId atualizado para $novoStatus!',
+              ),
               backgroundColor: Colors.green.shade700,
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
@@ -217,7 +233,7 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
   }
 
   // ==========================================
-  // 🔍 MODAL DE VISUALIZAÇÃO EXPANDIDA DO PRODUTO (COM PINÇA/ZOOM)
+  // 🔍 MODAL DE VISUALIZAÇÃO EXPANDIDA DO PRODUTO
   // ==========================================
   void _exibirModalProdutoExpandido(Map<String, dynamic> item) {
     final String nome = item['nome'] ?? 'Produto';
@@ -238,7 +254,7 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              height: 220,
+              height: 200,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
@@ -365,12 +381,14 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
           children: [
             const Icon(Icons.inventory_rounded, color: Colors.amber),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Fila de Separação', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                Text('Operador: ${widget.nomeSeparador}', style: const TextStyle(fontSize: 11, color: Colors.white70)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Fila de Separação', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                  Text('Operador: ${widget.nomeSeparador}', style: const TextStyle(fontSize: 11, color: Colors.white70), overflow: TextOverflow.ellipsis),
+                ],
+              ),
             ),
           ],
         ),
@@ -381,8 +399,9 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
           indicatorColor: Colors.amber,
           labelColor: Colors.amber,
           unselectedLabelColor: Colors.white70,
+          isScrollable: true,
           tabs: [
-            Tab(text: 'Pendentes (${pendentesFiltrados.length})',),
+            Tab(text: 'Pendentes (${pendentesFiltrados.length})'),
             Tab(text: 'Em Separação (${emSeparacaoFiltrados.length})'),
             Tab(text: 'Concluídos (${concluidosFiltrados.length})'),
           ],
@@ -394,18 +413,19 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
         children: [
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: TextField(
               controller: _buscaController,
               onChanged: (val) {
                 setState(() => _termoBusca = val);
               },
               decoration: InputDecoration(
-                hintText: 'Buscar por #Pedido, Cliente, Separador ou Produto...',
-                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF1E293B)),
+                hintText: 'Buscar #Pedido, Cliente ou Produto...',
+                hintStyle: const TextStyle(fontSize: 12),
+                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF1E293B), size: 20),
                 suffixIcon: _termoBusca.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear_rounded),
+                  icon: const Icon(Icons.clear_rounded, size: 18),
                   onPressed: () {
                     _buscaController.clear();
                     setState(() => _termoBusca = '');
@@ -414,7 +434,7 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                     : null,
                 filled: true,
                 fillColor: const Color(0xFFF1F5F9),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none,
@@ -422,7 +442,6 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
               ),
             ),
           ),
-
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -439,7 +458,7 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
   }
 
   // ==========================================
-  // CONSTRUTOR DA LISTA DE CARDS
+  // CONSTRUTOR DA LISTA DE CARDS RESPONSIVA
   // ==========================================
   Widget _buildListaPedidos(
       List<dynamic> lista, {
@@ -449,32 +468,34 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
       }) {
     if (lista.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.assignment_turned_in_outlined, size: 60, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(
-              _termoBusca.isNotEmpty
-                  ? 'Nenhum pedido encontrado para "$_termoBusca".'
-                  : 'Nenhum pedido nesta aba no momento.',
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.assignment_turned_in_outlined, size: 50, color: Colors.grey.shade400),
+              const SizedBox(height: 12),
+              Text(
+                _termoBusca.isNotEmpty
+                    ? 'Nenhum pedido encontrado para "$_termoBusca".'
+                    : 'Nenhum pedido nesta aba no momento.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       itemCount: lista.length,
       itemBuilder: (context, index) {
         final pedido = lista[index];
         final int pedidoId = pedido['id'];
         final List<dynamic> itens = pedido['itens'] ?? [];
         final double total = (pedido['total'] as num?)?.toDouble() ?? 0.0;
-        final double subtotal = (pedido['subtotal'] as num?)?.toDouble() ?? total;
-        final double taxaEntrega = (pedido['taxa_entrega'] as num?)?.toDouble() ?? 0.0;
         final String clienteNome = pedido['cliente_nome'] ?? 'Cliente';
         final String endereco = pedido['endereco_entrega'] ?? 'Endereço não informado';
         final String? separadoPor = pedido['separado_por'];
@@ -494,10 +515,18 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
           itensPorCategoria.putIfAbsent(cat, () => []).add(item);
         }
 
+        // Variáveis de Troco em Dinheiro
+        final String formaPagamento = (pedido['forma_pagamento'] ?? '').toString();
+        final double trocoPara = (pedido['troco_para'] as num?)?.toDouble() ?? 0.0;
+        final bool ehDinheiro = formaPagamento.toLowerCase().contains('dinheiro');
+        final double valorTrocoDevolver = trocoPara > total ? (trocoPara - total) : 0.0;
+        final bool temTrocoParaDinheiro = ehDinheiro && trocoPara > 0;
+
         return Card(
-          margin: const EdgeInsets.only(bottom: 16),
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             side: BorderSide(
               color: ehConcluido
                   ? Colors.grey.shade300
@@ -509,69 +538,54 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
           ),
           child: ExpansionTile(
             key: ValueKey('pedido_$pedidoId'),
-            tilePadding: const EdgeInsets.all(12),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center, // 👈 Alinhamento central
               children: [
-                // 👇 O Expanded aqui empurra o valor total pra direita com segurança
                 Expanded(
-                  child: Wrap( // 👈 Wrap permite que as tags pulem de linha se a tela for pequena
+                  child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 6.0, // Espaço horizontal entre pedido, status e aviso
-                    runSpacing: 4.0, // Espaço vertical se quebrar a linha
+                    spacing: 6.0,
+                    runSpacing: 4.0,
                     children: [
                       Text(
-                        'Pedido #$pedidoId',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        overflow: TextOverflow.ellipsis,
+                        '#$pedidoId',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                       ),
-
-                      // TAG DE STATUS
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: ehConcluido ? Colors.green.shade100 : Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           pedido['status'],
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 9,
                             fontWeight: FontWeight.bold,
                             color: ehConcluido ? Colors.green.shade900 : Colors.blue.shade900,
                           ),
                         ),
                       ),
-
-                      // TAG DE ITENS EM FALTA
                       if (itensFaltantesQtd > 0)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.red.shade100,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '⚠️ $itensFaltantesQtd em falta',
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.red.shade900,
-                                fontWeight: FontWeight.bold
-                            ),
+                            '⚠️ $itensFaltantesQtd falta',
+                            style: TextStyle(fontSize: 9, color: Colors.red.shade900, fontWeight: FontWeight.bold),
                           ),
                         ),
                     ],
                   ),
                 ),
-
-                const SizedBox(width: 8), // 👈 Um respiro seguro antes do valor total
-
-                // VALOR TOTAL FIXO NA DIREITA
                 Text(
                   'R\$ ${total.toStringAsFixed(2).replaceAll('.', ',')}',
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
                     color: Color(0xFF1E3A8A),
                   ),
@@ -581,17 +595,18 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.person_outline, size: 16, color: Colors.grey),
+                    const Icon(Icons.person_outline, size: 14, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Text(clienteNome, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    const Spacer(),
+                    Expanded(
+                      child: Text(clienteNome, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12), overflow: TextOverflow.ellipsis),
+                    ),
                     InkWell(
                       onTap: () => _abrirWhatsAppCliente(pedido),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
                           color: Colors.green.shade50,
                           borderRadius: BorderRadius.circular(6),
@@ -600,19 +615,19 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.chat, color: Colors.green, size: 14),
-                            SizedBox(width: 4),
-                            Text('WhatsApp', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                            Icon(Icons.chat, color: Colors.green, size: 12),
+                            SizedBox(width: 3),
+                            Text('WhatsApp', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
+                    const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -624,27 +639,21 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                     ),
                   ],
                 ),
-
                 if (separadoPor != null && separadoPor.trim().isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Row(
                     children: [
-                      const Icon(Icons.badge_outlined, size: 14, color: Color(0xFF1E293B)),
+                      const Icon(Icons.badge_outlined, size: 13, color: Color(0xFF1E293B)),
                       const SizedBox(width: 4),
                       Text(
-                        'Separado por: $separadoPor',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                        ),
+                        'Separador: $separadoPor',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
                       ),
                     ],
                   ),
                 ],
-
                 if (podeFinalizar) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Expanded(
@@ -652,13 +661,13 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                           value: progressoChecklist,
                           color: itensFaltantesQtd > 0 ? Colors.orange : Colors.green,
                           backgroundColor: Colors.grey.shade200,
-                          minHeight: 6,
+                          minHeight: 5,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Text(
                         '${itensConcluidos + itensFaltantesQtd}/${itens.length}',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -669,17 +678,17 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
               const Divider(height: 1),
               Container(
                 color: Colors.grey.shade50,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 📋 CARD DE INSTRUÇÕES E PREFERÊNCIAS DO CLIENTE
+                    // INSTRUÇÕES DO CLIENTE
                     Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 10),
                       decoration: BoxDecoration(
                         color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.amber.shade200),
                       ),
                       child: Column(
@@ -687,137 +696,76 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.assignment_ind_outlined, size: 16, color: Color(0xFF1E3A8A)),
-                              SizedBox(width: 6),
-                              Text(
-                                'Preferências e Instruções do Cliente',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1E3A8A)),
-                              ),
+                              Icon(Icons.assignment_ind_outlined, size: 14, color: Color(0xFF1E3A8A)),
+                              SizedBox(width: 5),
+                              Text('Instruções e Preferências', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF1E3A8A))),
                             ],
                           ),
-                          const Divider(height: 10),
-                          Row(
-                            children: [
-                              const Text('• Falta de item: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              Text(
-                                (pedido['opcao_substituicao'] ?? 'reembolso').toString() == 'similar'
-                                    ? 'Substituir por produto similar'
-                                    : 'Reembolso do valor',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: (pedido['opcao_substituicao'] ?? '').toString() == 'similar'
-                                      ? Colors.orange.shade800
-                                      : Colors.blue.shade800,
-                                ),
-                              ),
-                            ],
+                          const Divider(height: 8),
+                          Text(
+                            '• Falta de item: ${(pedido['opcao_substituicao'] ?? 'reembolso').toString() == 'similar' ? 'Substituir por similar' : 'Reembolso'}',
+                            style: const TextStyle(fontSize: 11),
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Text('• CPF na Nota: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              Text(
-                                pedido['deseja_cpf_nota'] == true ? 'SIM' : 'NÃO',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: pedido['deseja_cpf_nota'] == true ? Colors.green.shade800 : Colors.red.shade700,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 2),
+                          Text(
+                            '• CPF na Nota: ${pedido['deseja_cpf_nota'] == true ? 'SIM' : 'NÃO'}',
+                            style: const TextStyle(fontSize: 11),
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Text('• Recebimento: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              Expanded(
-                                child: Text(
-                                  '${(pedido['tipo_entrega'] ?? 'retirada').toString().toUpperCase()} - ${pedido['endereco_entrega'] ?? 'Retirada no Box Smart'}',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 2),
+                          Text(
+                            '• Pagamento: ${formaPagamento.toUpperCase()}',
+                            style: const TextStyle(fontSize: 11),
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Text('• Pagamento: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              Text(
-                                '${(pedido['forma_pagamento'] ?? 'pix').toString().toUpperCase()}${((pedido['troco_para'] as num?)?.toDouble() ?? 0.0) > 0 ? " (Troco para R\$ ${((pedido['troco_para'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2).replaceAll('.', ',')})" : ""}',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                          if (pedido['cupom_codigo'] != null && pedido['cupom_codigo'].toString().isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Row(
+                        ],
+                      ),
+                    ),
+
+                    // 🧮 ALERTA DE TROCO EM DINHEIRO (INSERIDO AQUI DE FORMA LIMPA)
+                    if (temTrocoParaDinheiro)
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
                               children: [
-                                const Text('• Cupom: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                Icon(Icons.payments_rounded, color: Color(0xFFD97706), size: 16),
+                                SizedBox(width: 5),
                                 Text(
-                                  '${pedido['cupom_codigo']} (-R\$ ${((pedido['valor_desconto_cupom'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2).replaceAll('.', ',')})',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                                  'Atenção: Pagamento em Dinheiro com Troco',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                    color: Color(0xFF92400E),
+                                  ),
                                 ),
                               ],
                             ),
+                            const Divider(height: 8, color: Color(0xFFFCD34D)),
+                            Text(
+                              '• O cliente vai pagar com: R\$ ${trocoPara.toStringAsFixed(2).replaceAll('.', ',')}',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF78350F)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '• Levar Troco de: R\$ ${valorTrocoDevolver.toStringAsFixed(2).replaceAll('.', ',')}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFFB45309),
+                              ),
+                            ),
                           ],
-                        ],
+                        ),
                       ),
-                    ),
 
-                    // RESUMO FINANCEIRO
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Subtotal dos Produtos:', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              Text('R\$ ${subtotal.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Taxa de Entrega:', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              Text(
-                                taxaEntrega == 0.0 ? 'GRÁTIS' : 'R\$ ${taxaEntrega.toStringAsFixed(2).replaceAll('.', ',')}',
-                                style: TextStyle(fontSize: 12, color: taxaEntrega == 0.0 ? Colors.green : Colors.black87),
-                              ),
-                            ],
-                          ),
-                          const Divider(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Valor Total:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              Text(
-                                'R\$ ${total.toStringAsFixed(2).replaceAll('.', ',')}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.green),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    const Text(
-                      'Itens para Separação (Agrupados por Categoria):',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // LISTA AGRUPADA POR CATEGORIA
+                    // LISTA DE ITENS POR CATEGORIA
                     ...itensPorCategoria.entries.map((entry) {
                       final String categoriaNome = entry.key;
                       final List<dynamic> itensCategoria = entry.value;
@@ -827,38 +775,17 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                         children: [
                           Container(
                             width: double.infinity,
-                            margin: const EdgeInsets.only(top: 8, bottom: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            margin: const EdgeInsets.only(top: 6, bottom: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: const Color(0xFF1E293B),
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(5),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.category_outlined, size: 14, color: Colors.amber),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      categoriaNome.toUpperCase(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 11,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  '${itensCategoria.length} ${itensCategoria.length == 1 ? 'item' : 'itens'}',
-                                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                                ),
-                              ],
+                            child: Text(
+                              categoriaNome.toUpperCase(),
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
                             ),
                           ),
-
                           ...itensCategoria.map((item) {
                             final int itemId = item['id'] ?? 0;
                             final String nomeItem = item['nome'] ?? 'Produto';
@@ -866,88 +793,70 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                             final bool emFalta = _itensFaltantes[pedidoId]?[itemId] ?? false;
 
                             return Container(
-                              margin: const EdgeInsets.only(bottom: 6),
+                              margin: const EdgeInsets.only(bottom: 4),
                               decoration: BoxDecoration(
                                 color: emFalta ? Colors.red.shade50 : Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: emFalta ? Colors.red.shade300 : Colors.grey.shade200,
-                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: emFalta ? Colors.red.shade300 : Colors.grey.shade200),
                               ),
                               child: ListTile(
                                 dense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                                 onTap: () => _exibirModalProdutoExpandido(item),
                                 leading: ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(4),
                                   child: Container(
-                                    width: 40,
-                                    height: 40,
+                                    width: 32,
+                                    height: 32,
                                     color: Colors.grey.shade100,
                                     child: item['imagem_url'] != null && item['imagem_url'].toString().startsWith('http')
                                         ? Image.network(item['imagem_url'], fit: BoxFit.cover)
-                                        : const Icon(Icons.image, size: 20, color: Colors.grey),
+                                        : const Icon(Icons.image, size: 16, color: Colors.grey),
                                   ),
                                 ),
-                                title: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        nomeItem,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: emFalta ? Colors.red.shade900 : Colors.black87,
-                                          decoration: (marcado && !ehConcluido) || emFalta
-                                              ? TextDecoration.lineThrough
-                                              : null,
-                                        ),
-                                      ),
-                                    ),
-                                    if (emFalta)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.shade700,
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: const Text(
-                                          'INDISPONÍVEL',
-                                          style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                  ],
+                                title: Text(
+                                  nomeItem,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: emFalta ? Colors.red.shade900 : Colors.black87,
+                                    decoration: (marcado && !ehConcluido) || emFalta ? TextDecoration.lineThrough : null,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 subtitle: Text(
-                                  'Qtd: ${item['quantidade']} x R\$ ${((item['preco_unitario'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
+                                  'Qtd: ${item['quantidade']} | R\$ ${((item['preco_unitario'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 10),
                                 ),
                                 trailing: ehConcluido
-                                    ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
+                                    ? const Icon(Icons.check_circle, color: Colors.green, size: 18)
                                     : Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     if (podeFinalizar)
                                       IconButton(
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
                                         icon: Icon(
                                           emFalta ? Icons.report_problem : Icons.report_problem_outlined,
                                           color: emFalta ? Colors.red : Colors.grey.shade400,
-                                          size: 20,
+                                          size: 18,
                                         ),
-                                        tooltip: emFalta ? 'Item em falta' : 'Marcar como em falta',
                                         onPressed: () {
                                           setState(() {
                                             final novoEstadoFalta = !emFalta;
                                             _itensFaltantes[pedidoId]![itemId] = novoEstadoFalta;
-                                            if (novoEstadoFalta) {
-                                              _checklistItens[pedidoId]![itemId] = false;
-                                            }
+                                            if (novoEstadoFalta) _checklistItens[pedidoId]![itemId] = false;
                                           });
-
                                           if (_itensFaltantes[pedidoId]![itemId] == true) {
                                             _abrirWhatsAppCliente(pedido, itemFaltanteNome: nomeItem);
                                           }
                                         },
                                       ),
-
+                                    const SizedBox(width: 4),
                                     Checkbox(
+                                      visualDensity: VisualDensity.compact,
                                       value: marcado,
                                       activeColor: Colors.green,
                                       onChanged: (podeFinalizar && !emFalta)
@@ -967,108 +876,40 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                       );
                     }).toList(),
 
-                    const SizedBox(height: 12),
-
-                    // 📊 BARRA DE PROGRESSO AO ROLAR A TELA
-                    if (podeFinalizar) ...[
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Progresso: ${itensConcluidos + itensFaltantesQtd} de ${itens.length} itens checados',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  '${(progressoChecklist * 100).toInt()}%',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: progressoChecklist == 1.0 ? Colors.green : Colors.amber.shade900,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: progressoChecklist,
-                                color: itensFaltantesQtd > 0 ? Colors.orange : Colors.green,
-                                backgroundColor: Colors.grey.shade200,
-                                minHeight: 8,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    const SizedBox(height: 10),
 
                     // BOTÕES DE AÇÃO
-                    if (podeIniciar) ...[
+                    if (podeIniciar)
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue.shade800,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           onPressed: () => _atualizarStatusPedido(pedidoId, 'EM_SEPARACAO'),
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          label: const Text('INICIAR SEPARAÇÃO', style: TextStyle(fontWeight: FontWeight.bold)),
+                          icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                          label: const Text('INICIAR SEPARAÇÃO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         ),
                       ),
-                    ],
 
-                    if (podeFinalizar) ...[
+                    if (podeFinalizar)
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green.shade700,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           onPressed: () => _atualizarStatusPedido(pedidoId, 'SEPARADO'),
-                          icon: const Icon(Icons.check_circle_outline_rounded),
-                          label: const Text('FINALIZAR SEPARAÇÃO (PRONTO)', style: TextStyle(fontWeight: FontWeight.bold)),
+                          icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                          label: const Text('FINALIZAR SEPARAÇÃO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         ),
                       ),
-                    ],
-
-                    if (ehConcluido) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.lock_outline, size: 16, color: Colors.grey),
-                            SizedBox(width: 6),
-                            Text(
-                              'Pedido finalizado / somente leitura',
-                              style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),

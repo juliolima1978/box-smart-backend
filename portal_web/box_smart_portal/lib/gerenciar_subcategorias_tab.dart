@@ -20,6 +20,7 @@ class _GerenciarSubcategoriasTabState extends State<GerenciarSubcategoriasTab> {
   List<dynamic> _subcategorias = [];
   List<dynamic> _categorias = [];
   bool _isLoading = true;
+  bool _mostrarFiltros = true; // 👁️ Estado para alternar a visibilidade do topo
 
   final TextEditingController _buscaController = TextEditingController();
   String _termoBusca = '';
@@ -31,6 +32,12 @@ class _GerenciarSubcategoriasTabState extends State<GerenciarSubcategoriasTab> {
   void initState() {
     super.initState();
     _carregarDados();
+  }
+
+  @override
+  void dispose() {
+    _buscaController.dispose();
+    super.dispose();
   }
 
   Future<void> _carregarDados() async {
@@ -277,144 +284,200 @@ class _GerenciarSubcategoriasTabState extends State<GerenciarSubcategoriasTab> {
     }).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. CABEÇALHO
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Gestão de Subcategorias (Segmentos)',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -0.4),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Subdivida suas categorias principais para facilitar a busca de produtos pelos clientes.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E3A8A),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-                onPressed: () => _exibirFormularioSubcategoria(),
-                icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
-                label: const Text('Nova Subcategoria', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // 2. CARDS KPIs
-          _buildKpiGrid(),
-          const SizedBox(height: 20),
-
-          // 3. BARRA DE FERRAMENTAS E FILTROS
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
+          // 👁️ PAINEL SUPERIOR COLAPSÁVEL (Cabeçalho, KPIs e Filtros)
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 250),
+            crossFadeState: _mostrarFiltros ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            firstChild: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 1. CABEÇALHO RESPONSIVO
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _buscaController,
-                        decoration: InputDecoration(
-                          hintText: 'Buscar subcategoria por nome...',
-                          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
-                          filled: true,
-                          fillColor: const Color(0xFFF8FAFC),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5)),
-                        ),
-                        onChanged: (valor) {
-                          setState(() => _termoBusca = valor.trim());
-                        },
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Gestão de Subcategorias',
+                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -0.4),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Subdivida suas categorias principais para facilitar a busca de produtos pelos clientes.',
+                            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    IconButton(
-                      icon: const Icon(Icons.refresh_rounded, color: Color(0xFF334155)),
-                      onPressed: _carregarDados,
-                      tooltip: 'Atualizar Subcategorias',
+                    const SizedBox(width: 8),
+                    Row(
+                      children: [
+                        // 👁️ BOTÃO DE OLHO
+                        IconButton(
+                          icon: Icon(
+                            _mostrarFiltros ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                            color: const Color(0xFF334155),
+                          ),
+                          tooltip: _mostrarFiltros ? 'Ocultar Cabeçalho/Filtros' : 'Mostrar Cabeçalho/Filtros',
+                          onPressed: () {
+                            setState(() {
+                              _mostrarFiltros = !_mostrarFiltros;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E3A8A),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            elevation: 0,
+                          ),
+                          onPressed: () => _exibirFormularioSubcategoria(),
+                          icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                          label: const Text('Nova Subcategoria', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                      ],
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
 
-                // ChoiceChips de Categoria Pai
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
+                // 2. CARDS KPIS
+                _buildKpiGrid(),
+                const SizedBox(height: 14),
+
+                // 3. BARRA DE FERRAMENTAS E FILTROS
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: ChoiceChip(
-                          label: const Text('Todas as Categorias'),
-                          selected: _categoriaFiltroId == null,
-                          selectedColor: const Color(0xFF1E3A8A),
-                          backgroundColor: const Color(0xFFF1F5F9),
-                          labelStyle: TextStyle(
-                            color: _categoriaFiltroId == null ? Colors.white : const Color(0xFF475569),
-                            fontWeight: _categoriaFiltroId == null ? FontWeight.bold : FontWeight.w500,
-                            fontSize: 12,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _buscaController,
+                              decoration: InputDecoration(
+                                hintText: 'Buscar subcategoria por nome...',
+                                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5)),
+                              ),
+                              onChanged: (valor) {
+                                setState(() => _termoBusca = valor.trim());
+                              },
+                            ),
                           ),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide.none),
-                          showCheckmark: false,
-                          onSelected: (selected) {
-                            setState(() => _categoriaFiltroId = null);
-                          },
+                          const SizedBox(width: 12),
+                          IconButton(
+                            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF334155)),
+                            onPressed: _carregarDados,
+                            tooltip: 'Atualizar Subcategorias',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ChoiceChips de Categoria Pai com rolagem segura
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: ChoiceChip(
+                                label: const Text('Todas as Categorias'),
+                                selected: _categoriaFiltroId == null,
+                                selectedColor: const Color(0xFF1E3A8A),
+                                backgroundColor: const Color(0xFFF1F5F9),
+                                labelStyle: TextStyle(
+                                  color: _categoriaFiltroId == null ? Colors.white : const Color(0xFF475569),
+                                  fontWeight: _categoriaFiltroId == null ? FontWeight.bold : FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide.none),
+                                showCheckmark: false,
+                                onSelected: (selected) {
+                                  setState(() => _categoriaFiltroId = null);
+                                },
+                              ),
+                            ),
+                            ..._categorias.map((cat) {
+                              final bool selecionado = _categoriaFiltroId == cat['id'];
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: ChoiceChip(
+                                  label: Text(cat['nome']),
+                                  selected: selecionado,
+                                  selectedColor: const Color(0xFF1E3A8A),
+                                  backgroundColor: const Color(0xFFF1F5F9),
+                                  labelStyle: TextStyle(
+                                    color: selecionado ? Colors.white : const Color(0xFF475569),
+                                    fontWeight: selecionado ? FontWeight.bold : FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide.none),
+                                  showCheckmark: false,
+                                  onSelected: (selected) {
+                                    setState(() => _categoriaFiltroId = cat['id']);
+                                  },
+                                ),
+                              );
+                            }),
+                          ],
                         ),
                       ),
-                      ..._categorias.map((cat) {
-                        final bool selecionado = _categoriaFiltroId == cat['id'];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: ChoiceChip(
-                            label: Text(cat['nome']),
-                            selected: selecionado,
-                            selectedColor: const Color(0xFF1E3A8A),
-                            backgroundColor: const Color(0xFFF1F5F9),
-                            labelStyle: TextStyle(
-                              color: selecionado ? Colors.white : const Color(0xFF475569),
-                              fontWeight: selecionado ? FontWeight.bold : FontWeight.w500,
-                              fontSize: 12,
-                            ),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide.none),
-                            showCheckmark: false,
-                            onSelected: (selected) {
-                              setState(() => _categoriaFiltroId = cat['id']);
-                            },
-                          ),
-                        );
-                      }),
                     ],
                   ),
+                ),
+                const SizedBox(height: 14),
+              ],
+            ),
+            secondChild: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // 👁️ Botão de olho flutuante quando o topo estiver oculto
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _mostrarFiltros = !_mostrarFiltros;
+                    });
+                  },
+                  icon: const Icon(Icons.visibility_rounded, color: Color(0xFF1E3A8A), size: 18),
+                  label: const Text('Mostrar Cabeçalho e Filtros', style: TextStyle(color: Color(0xFF1E3A8A), fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
 
-          // 4. TABELA / LISTAGEM DE SUBCATEGORIAS
+          // 4. TABELA / LISTAGEM DE SUBCATEGORIAS EMPILHADA (Blindada contra overflow)
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -440,94 +503,134 @@ class _GerenciarSubcategoriasTabState extends State<GerenciarSubcategoriasTab> {
                     orElse: () => {'nome': 'Geral'},
                   );
 
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    leading: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: const Icon(Icons.subdirectory_arrow_right_rounded, color: Color(0xFF1E3A8A), size: 22),
-                    ),
-                    title: Text(
-                      sub['nome'] ?? 'Subcategoria',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF3C7),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'Categoria Pai: ${categoriaPai['nome']}',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'ID: $id',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'Ordem: $ordem',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Badge de Status
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
-                            color: ativa ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: ativa ? const Color(0xFFA7F3D0) : const Color(0xFFFCA5A5)),
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
-                          child: Text(
-                            ativa ? 'Ativo' : 'Inativo',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: ativa ? const Color(0xFF047857) : const Color(0xFFB91C1C),
-                              fontSize: 11,
-                            ),
+                          child: const Icon(Icons.subdirectory_arrow_right_rounded, color: Color(0xFF1E3A8A), size: 22),
+                        ),
+                        const SizedBox(width: 12),
+
+                        // 🌟 ESTRUTURA VERTICAL EMPILHADA SEGURA
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                sub['nome'] ?? 'Subcategoria',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+
+                              // Linha de Detalhes (Categoria Pai, ID, Ordem) via Wrap
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF3C7),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'Pai: ${categoriaPai['nome']}',
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'ID: $id',
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'Ordem: $ordem',
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Linha Inferior: Badge de Status e Botões de Ação
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: ativa ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: ativa ? const Color(0xFFA7F3D0) : const Color(0xFFFCA5A5)),
+                                    ),
+                                    child: Text(
+                                      ativa ? 'Ativo' : 'Inativo',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: ativa ? const Color(0xFF047857) : const Color(0xFFB91C1C),
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        height: 28,
+                                        width: 28,
+                                        child: IconButton(
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: const Color(0xFFEFF6FF),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF1E3A8A), size: 15),
+                                          tooltip: 'Editar',
+                                          onPressed: () => _exibirFormularioSubcategoria(sub),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        height: 28,
+                                        width: 28,
+                                        child: IconButton(
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: const Color(0xFFFEF2F2),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                          icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 15),
+                                          tooltip: 'Excluir',
+                                          onPressed: () => _deletarSubcategoria(id, sub['nome'] ?? ''),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF1E3A8A), size: 20),
-                          tooltip: 'Editar',
-                          onPressed: () => _exibirFormularioSubcategoria(sub),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 20),
-                          tooltip: 'Excluir',
-                          onPressed: () => _deletarSubcategoria(id, sub['nome'] ?? ''),
                         ),
                       ],
                     ),

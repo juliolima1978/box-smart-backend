@@ -123,18 +123,16 @@ class _GerenciarUsuariosTabState extends State<GerenciarUsuariosTab> {
     }
   }
 
-  // 4. Modal para Novo Cadastro de Usuário (Fix de Perfil)
+  // 4. Modal para Novo Cadastro de Usuário
   void _abrirModalNovoUsuario() {
     final nomeController = TextEditingController();
     final emailController = TextEditingController();
     final senhaController = TextEditingController();
-
-    // 🌟 GARANTIA: Variável dinâmica para salvar o perfil escolhido
     String perfilSelecionado = 'separador';
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder( // 🌟 CORRIGIDO: Usa StatefulBuilder em vez de StatefulWidget
+      builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -174,24 +172,23 @@ class _GerenciarUsuariosTabState extends State<GerenciarUsuariosTab> {
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // 🌟 Seletor de Perfil com atualização dinâmica do Modal
                     DropdownButtonFormField<String>(
                       value: perfilSelecionado,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Perfil de Acesso',
                         prefixIcon: Icon(Icons.badge_outlined),
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'gestor', child: Text('Gestor / Admin')),
-                        DropdownMenuItem(value: 'separador', child: Text('Separador')),
-                        DropdownMenuItem(value: 'entregador', child: Text('Entregador')),
+                        DropdownMenuItem(value: 'gestor', child: Text('Gestor / Admin', overflow: TextOverflow.ellipsis)),
+                        DropdownMenuItem(value: 'separador', child: Text('Separador', overflow: TextOverflow.ellipsis)),
+                        DropdownMenuItem(value: 'entregador', child: Text('Entregador', overflow: TextOverflow.ellipsis)),
                       ],
                       onChanged: (novoValor) {
                         if (novoValor != null) {
                           setModalState(() {
-                            perfilSelecionado = novoValor; // Atualiza a seleção e redesenha o modal
+                            perfilSelecionado = novoValor;
                           });
                         }
                       },
@@ -229,7 +226,7 @@ class _GerenciarUsuariosTabState extends State<GerenciarUsuariosTab> {
                         'nome': nomeController.text.trim(),
                         'email': emailController.text.trim(),
                         'senha': senhaController.text,
-                        'perfil': perfilSelecionado, // Envia 'entregador', 'separador' ou 'gestor'
+                        'perfil': perfilSelecionado,
                         'ativo': true,
                       }),
                     );
@@ -274,71 +271,100 @@ class _GerenciarUsuariosTabState extends State<GerenciarUsuariosTab> {
     }).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cabeçalho
+          // 1. Cabeçalho Responsivo
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Gerenciamento de Perfis e Equipe', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Gerenciamento de Perfis e Equipe',
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -0.4),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Controle de acessos, permissões e status dos colaboradores.',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1E3A8A),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
                 ),
                 icon: const Icon(Icons.add, color: Colors.white, size: 20),
-                label: const Text('Novo Usuário', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                label: const Text('Novo Usuário', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                 onPressed: _abrirModalNovoUsuario,
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
 
-          // Busca e Ações
-          Row(
-            children: [
-              SizedBox(
-                width: 320,
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por nome, e-mail ou cargo...',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+          // 2. Busca e Ações
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por nome, e-mail ou cargo...',
+                      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF64748B)),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5)),
+                    ),
+                    onChanged: (val) => setState(() => _termoBusca = val.trim().toLowerCase()),
                   ),
-                  onChanged: (val) => setState(() => _termoBusca = val.trim().toLowerCase()),
                 ),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _carregarUsuarios,
-                tooltip: 'Atualizar Lista',
-              ),
-            ],
+                const SizedBox(width: 12),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, color: Color(0xFF334155)),
+                  onPressed: _carregarUsuarios,
+                  tooltip: 'Atualizar Lista',
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
 
-          // Lista / Tabela de Usuários
+          // 3. Lista / Tabela de Usuários Blindada contra Overflow
           Expanded(
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF1E3A8A)))
                   : usuariosFiltrados.isEmpty
-                  ? const Center(child: Text('Nenhum usuário encontrado.', style: TextStyle(color: Colors.grey)))
+                  ? const Center(child: Text('Nenhum usuário encontrado.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15)))
                   : ListView.separated(
                 itemCount: usuariosFiltrados.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
+                separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 itemBuilder: (context, index) {
                   final u = usuariosFiltrados[index];
                   final int id = u['id'] ?? 0;
@@ -347,60 +373,99 @@ class _GerenciarUsuariosTabState extends State<GerenciarUsuariosTab> {
                   final String perfil = (u['perfil'] ?? 'separador').toString().toLowerCase();
                   final bool ativo = u['ativo'] ?? u['is_active'] ?? true;
 
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    leading: CircleAvatar(
-                      backgroundColor: _corPerfilBg(perfil),
-                      child: Icon(_iconePerfil(perfil), color: _corPerfilIcone(perfil), size: 20),
-                    ),
-                    title: Row(
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(nome, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _corPerfilBg(perfil),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            perfil.toUpperCase(),
-                            style: TextStyle(color: _corPerfilIcone(perfil), fontSize: 10, fontWeight: FontWeight.bold),
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: _corPerfilBg(perfil),
+                          child: Icon(_iconePerfil(perfil), color: _corPerfilIcone(perfil), size: 20),
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Informações do Usuário Flexíveis
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    nome,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: _corPerfilBg(perfil),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      perfil.toUpperCase(),
+                                      style: TextStyle(color: _corPerfilIcone(perfil), fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  if (!ativo)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade50,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'INATIVO',
+                                        style: TextStyle(color: Colors.red.shade700, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                email,
+                                style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(width: 8),
-                        if (!ativo)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(4),
+
+                        // Ações protegidas em Row compacta
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              height: 32,
+                              width: 32,
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  ativo ? Icons.block_outlined : Icons.check_circle_outline,
+                                  color: ativo ? Colors.orange.shade800 : Colors.green.shade800,
+                                  size: 18,
+                                ),
+                                tooltip: ativo ? 'Inativar Usuário' : 'Ativar Usuário',
+                                onPressed: () => _alternarStatusUsuario(id, ativo),
+                              ),
                             ),
-                            child: Text(
-                              'INATIVO',
-                              style: TextStyle(color: Colors.red.shade700, fontSize: 10, fontWeight: FontWeight.bold),
+                            const SizedBox(width: 4),
+                            SizedBox(
+                              height: 32,
+                              width: 32,
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                                tooltip: 'Excluir Usuário',
+                                onPressed: () => _excluirUsuario(id, nome),
+                              ),
                             ),
-                          ),
-                      ],
-                    ),
-                    subtitle: Text(email, style: const TextStyle(color: Colors.grey)),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Botão Inativar / Ativar
-                        IconButton(
-                          icon: Icon(
-                            ativo ? Icons.block_outlined : Icons.check_circle_outline,
-                            color: ativo ? Colors.orange.shade800 : Colors.green.shade800,
-                          ),
-                          tooltip: ativo ? 'Inativar Usuário' : 'Ativar Usuário',
-                          onPressed: () => _alternarStatusUsuario(id, ativo),
-                        ),
-                        // Botão Excluir
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                          tooltip: 'Excluir Usuário',
-                          onPressed: () => _excluirUsuario(id, nome),
+                          ],
                         ),
                       ],
                     ),

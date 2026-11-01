@@ -22,6 +22,7 @@ class _RelatorioVendasBairroTabState extends State<RelatorioVendasBairroTab> {
   double _faturamentoGlobal = 0.0;
   int _totalBairrosAtendidos = 0;
   bool _isLoading = true;
+  bool _mostrarFiltros = true; // 👁️ Estado para alternar a visibilidade do topo
 
   final TextEditingController _buscaController = TextEditingController();
   String _termoBusca = '';
@@ -35,6 +36,12 @@ class _RelatorioVendasBairroTabState extends State<RelatorioVendasBairroTab> {
   void initState() {
     super.initState();
     _carregarRelatorioBairros();
+  }
+
+  @override
+  void dispose() {
+    _buscaController.dispose();
+    super.dispose();
   }
 
   Future<void> _carregarRelatorioBairros() async {
@@ -91,75 +98,131 @@ class _RelatorioVendasBairroTabState extends State<RelatorioVendasBairroTab> {
     }).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. CABEÇALHO
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Distribuição Geográfica por Bairro',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.4,
+          // 👁️ PAINEL SUPERIOR COLAPSÁVEL (Cabeçalho, KPIs e Filtros)
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 250),
+            crossFadeState: _mostrarFiltros ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            firstChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. CABEÇALHO 100% RESPONSIVO
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Distribuição Geográfica por Bairro',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.4,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Mapeamento de faturamento, volume de pedidos e ticket médio por região.',
+                            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      children: [
+                        // 👁️ BOTÃO DE OLHO
+                        IconButton(
+                          icon: Icon(
+                            _mostrarFiltros ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                            color: const Color(0xFF334155),
+                          ),
+                          tooltip: _mostrarFiltros ? 'Ocultar Cabeçalho/Filtros' : 'Mostrar Cabeçalho/Filtros',
+                          onPressed: () {
+                            setState(() {
+                              _mostrarFiltros = !_mostrarFiltros;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.refresh_rounded, color: Color(0xFF334155)),
+                          onPressed: _carregarRelatorioBairros,
+                          tooltip: 'Atualizar Relatório',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // 2. CARDS KPIs
+                _buildKpiGrid(),
+                const SizedBox(height: 14),
+
+                // 3. BARRA DE BUSCA
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: TextField(
+                    controller: _buscaController,
+                    decoration: InputDecoration(
+                      hintText: 'Filtrar por nome do bairro...',
+                      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5)),
+                    ),
+                    onChanged: (valor) {
+                      setState(() => _termoBusca = valor.trim());
+                    },
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
+            ),
+            secondChild: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // 👁️ Botão de olho flutuante quando o topo estiver oculto
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
                     ),
                   ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Mapeamento de faturamento, volume de pedidos e ticket médio por região.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, color: Color(0xFF334155)),
-                onPressed: _carregarRelatorioBairros,
-                tooltip: 'Atualizar Relatório',
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // 2. CARDS KPIs
-          _buildKpiGrid(),
-          const SizedBox(height: 20),
-
-          // 3. BARRA DE BUSCA
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: TextField(
-              controller: _buscaController,
-              decoration: InputDecoration(
-                hintText: 'Filtrar por nome do bairro...',
-                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5)),
-              ),
-              onChanged: (valor) {
-                setState(() => _termoBusca = valor.trim());
-              },
+                  onPressed: () {
+                    setState(() {
+                      _mostrarFiltros = !_mostrarFiltros;
+                    });
+                  },
+                  icon: const Icon(Icons.visibility_rounded, color: Color(0xFF1E3A8A), size: 18),
+                  label: const Text('Mostrar Cabeçalho e Filtros', style: TextStyle(color: Color(0xFF1E3A8A), fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
 
-          // 4. LISTAGEM RANQUEADA
+          // 4. LISTAGEM RANQUEADA BLINDADA CONTRA OVERFLOW
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -183,13 +246,13 @@ class _RelatorioVendasBairroTabState extends State<RelatorioVendasBairroTab> {
                   final double percentual = double.tryParse(b['percentual_total']?.toString() ?? '0') ?? 0.0;
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            // Posicional Badge
+                            // Badge de Posição
                             Container(
                               width: 28,
                               height: 28,
@@ -217,12 +280,15 @@ class _RelatorioVendasBairroTabState extends State<RelatorioVendasBairroTab> {
                             Expanded(
                               child: Text(
                                 nomeBairro,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Text(
                               _formatoMoeda.format(faturamento),
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1E3A8A)),
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF1E3A8A)),
                             ),
                           ],
                         ),
@@ -240,17 +306,19 @@ class _RelatorioVendasBairroTabState extends State<RelatorioVendasBairroTab> {
                         ),
                         const SizedBox(height: 8),
 
-                        // Subinformações
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        // Subinformações Blindadas com Wrap para evitar Overflow horizontal
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 12,
+                          runSpacing: 4,
                           children: [
                             Text(
                               '$pedidos pedidos realizados',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                             ),
                             Text(
                               'Ticket Médio: ${_formatoMoeda.format(ticketMedio)} • ${percentual.toStringAsFixed(1)}% do total',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
                             ),
                           ],
                         ),
@@ -273,7 +341,7 @@ class _RelatorioVendasBairroTabState extends State<RelatorioVendasBairroTab> {
         final cards = [
           _buildKpiCard('Regiões Atendidas', '$_totalBairrosAtendidos bairros', 'Presença de entregas', Icons.map_rounded, const Color(0xFF1E3A8A), const Color(0xFFEFF6FF)),
           _buildKpiCard('Bairro Campeão', _bairroLider, 'Maior faturamento', Icons.emoji_events_rounded, const Color(0xFFD97706), const Color(0xFFFEF3C7)),
-          _buildKpiCard('Faturamento Mapeado', _formatoMoeda.format(_faturamentoGlobal), 'Total bruto acumulado', Icons.attach_money_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5)),
+          _buildKpiCard('Faturamento Mapeado', _formatoMoeda.format(_faturamentoGlobal), 'Total bruto', Icons.attach_money_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5)),
           _buildKpiCard('Ticket Médio Geral', _formatoMoeda.format(_ticketMedioGeral), 'Média por pedido', Icons.analytics_rounded, const Color(0xFF7C3AED), const Color(0xFFF5F3FF)),
         ];
 
@@ -320,7 +388,15 @@ class _RelatorioVendasBairroTabState extends State<RelatorioVendasBairroTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w600)),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)),

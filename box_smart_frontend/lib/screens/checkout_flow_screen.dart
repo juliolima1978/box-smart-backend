@@ -1781,8 +1781,13 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       });
 
       double valorTrocoPara = 0.0;
-      if (_formaPagamento == 'dinheiro' && _precisaTroco) {
-        valorTrocoPara = double.tryParse(_trocoController.text.replaceAll('.', '').replaceAll(',', '.').trim()) ?? 0.0;
+      if (_formaPagamento.toLowerCase() == 'dinheiro' && _precisaTroco) {
+        String textoTroco = _trocoController.text.trim();
+        debugPrint("TEXTO DIGITADO NO TROCO: '$textoTroco'"); // 👈 Adicione isso para depurar no console
+
+        textoTroco = textoTroco.replaceAll('R\$', '').replaceAll(' ', '').replaceAll('.', '').replaceAll(',', '.');
+        valorTrocoPara = double.tryParse(textoTroco) ?? 0.0;
+        debugPrint("VALOR CONVERTIDO DO TROCO: $valorTrocoPara"); // 👈 Veja se o número não está vindo 0.0 aqui
       }
 
       String enderecoFinal = _tipoEntrega == 'delivery' ? _enderecoEntrega : 'Retirada no Box Smart';
