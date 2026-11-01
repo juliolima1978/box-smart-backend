@@ -44,7 +44,6 @@ try:
 except ImportError:
     WebSacIntegration = None
 
-
 # ==========================================
 # 🌟 CONFIGURAÇÕES DE FUSO HORÁRIO E DATA
 # ==========================================
@@ -3271,3 +3270,20 @@ async def sincronizar_postgres_200(db: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro no teste do PostgreSQL: {str(e)}")
+        
+# ==========================================
+# 🌟 CONFIGURAÇÕES DO APP (APPBAR CUSTOMIZÁVEL)
+# ==========================================
+@app.get("/api/configuracoes-app")
+def obter_configuracoes_app(db: Session = Depends(get_db)):
+    """
+    Retorna as propriedades visuais da AppBar para o aplicativo cliente.
+    Pode ser adaptado para buscar de uma tabela de configurações no banco de dados futuramente.
+    """
+    return {
+        "appbar_cor_fundo": "#0F172A",       # Ex: Azul escuro elegante
+        "appbar_cor_icones": "#FFFFFF",      # Ícones e textos em branco
+        "appbar_titulo_texto": "Box Smart",  # Título padrão ou nome da loja
+        "appbar_exibir_logo": False,         # Se true, exibe a logo no lugar do texto
+        "appbar_logo_url": ""                # URL da logo se houver
+    }
