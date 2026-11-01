@@ -23,7 +23,6 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 import firebase_admin
 from firebase_admin import credentials, messaging, firestore
-
 import models
 import schemas
 import crud
@@ -33,7 +32,7 @@ import requests
 import secrets
 from passlib.context import CryptContext
 from database import engine, get_db, SessionLocal
-from models import Pedido, Produto, ItemPedido, Categoria, Favorito, Endereco, Cliente
+from models import Pedido, Produto, ItemPedido, Categoria, Favorito, Endereco, Cliente, ConfiguracaoApp
 from treinar_recomendacao import treinar_motor_recomendacao
 from routers.frete import router as frete_router
 
@@ -3274,16 +3273,55 @@ async def sincronizar_postgres_200(db: Session = Depends(get_db)):
 # ==========================================
 # 🌟 CONFIGURAÇÕES DO APP (APPBAR CUSTOMIZÁVEL)
 # ==========================================
+# Schema Pydantic para validação do payload enviado pelo painel
+class ConfiguracaoAppUpdate(BaseModel):
+    appbar_cor_fundo: str
+    appbar_cor_icones: str
+    appbar_titulo_texto: str
+    appbar_exibir_logo: bool
+    appbar_logo_url: str = ""
+
+# 1. Rota que o App Flutter consome (GET)
 @app.get("/api/configuracoes-app")
 def obter_configuracoes_app(db: Session = Depends(get_db)):
-    """
-    Retorna as propriedades visuais da AppBar para o aplicativo cliente.
-    Pode ser adaptado para buscar de uma tabela de configurações no banco de dados futuramente.
-    """
+    config = db.query(ConfiguracaoApp).filter(ConfiguracaoApp.id == 1).first()
+    if not config:
+        # Retorno padrão caso a tabela esteja vazia
+        return {
+            "appbar_cor_fundo": "#0F172A",
+            "appbar_cor_icones": "#FFFFFF",
+            "appbar_titulo_texto": "Box Smart",
+            "appbar_exibir_logo": False,
+            "appbar_logo_url": ""
+        }
     return {
-        "appbar_cor_fundo": "#0F172A",       # Ex: Azul escuro elegante
-        "appbar_cor_icones": "#FFFFFF",      # Ícones e textos em branco
-        "appbar_titulo_texto": "Box Smart",  # Título padrão ou nome da loja
-        "appbar_exibir_logo": False,         # Se true, exibe a logo no lugar do texto
-        "appbar_logo_url": ""                # URL da logo se houver
+        "appbar_cor_fundo": config.appbar_cor_fundo,
+        "appbar_cor_icones": config.appbar_cor_icones,
+        "appbar_titulo_texto": config.appbar_titulo_texto,
+        "appbar_exibir_logo": config.appbar_exibir_logo,
+        "appbar_logo_url": config.appbar_logo_url or ""
     }
+
+# 2. Rota que o Painel Gestor chama para salvar as alterações (PUT ou POST)
+@app.put("/api/admin/configuracoes-app")
+def atualizar_configuracoes_app(
+    dados: ConfiguracaoAppUpdate, 
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user) # Proteja para administradores
+):
+    config = db.query(ConfiguracaoApp).filter(ConfiguracaoApp.id == 1).first()
+    
+    if not config:
+        config = ConfiguracaoApp(id=1)
+        db.add(config)
+    
+    config.appbar_cor_fundo = dados.appbar_cor_fundo
+    config.appbar_cor_icones = dados.appbar_cor_icones
+    config.appbar_titulo_texto = dados.appbar_titulo_texto
+    config.appbar_exibir_logo = dados.appbar_exibir_logo
+    config.appbar_logo_url = dados.appbar_logo_url
+    
+    db.commit()
+    db.refresh(config)
+    
+    return {"mensagem": "Configurações da AppBar atualizadas com sucesso!"}

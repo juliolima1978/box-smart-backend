@@ -3,6 +3,9 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, Boolean, DateTime, Table
 from sqlalchemy.orm import relationship
 from database import Base
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from database import Base # Ajuste conforme o seu import de base do SQLAlchemy
+
 
 # 🌟 Função utilitária de Fuso Horário de Brasília (UTC-3)
 FUSO_BRASILIA = ZoneInfo("America/Sao_Paulo")
@@ -200,6 +203,18 @@ class Pedido(Base):
     separador = relationship("Cliente", foreign_keys=[separador_id])
     entregador = relationship("Cliente", foreign_keys=[entregador_id])
     itens = relationship("ItemPedido", back_populates="pedido", cascade="all, delete-orphan")
+     
+
+class ConfiguracaoApp(Base):
+    __tablename__ = "configuracoes_app"
+
+    id = Column(Integer, primary_key=True, index=True)
+    appbar_cor_fundo = Column(String(20), default="#0F172A")
+    appbar_cor_icones = Column(String(20), default="#FFFFFF")
+    appbar_titulo_texto = Column(String(100), default="Box Smart")
+    appbar_exibir_logo = Column(Boolean, default=False)
+    appbar_logo_url = Column(Text, nullable=True)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class ItemPedido(Base):
