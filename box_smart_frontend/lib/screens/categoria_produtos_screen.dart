@@ -688,7 +688,7 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Expanded(
+                      /*Expanded(
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             backgroundColor: Colors.white,
@@ -711,7 +711,12 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
                                   produtosListaGlobal: widget.produtosListaGlobal,
                                 ),
                               ),
-                            );
+                            ).then((_) {
+                              // 🌟 Garante que a tela da categoria atualize o estado ao voltar da Lista Rápida
+                              if (mounted) {
+                                setState(() {});
+                              }
+                            });
                           },
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -733,7 +738,7 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
                             ],
                           ),
                         ),
-                      ),
+                      ),*/
                     ],
                   ),
                 ),

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_pedidos_screen.dart';
 import 'admin_frete_screen.dart'; // 🌟 Import da tela de Gestão de Frete
+import 'configuracoes_appbar_screen.dart'; // 🌟 Import da nova tela de Configuração da AppBar
 import 'fila_pedidos_separador_screen.dart';
 import 'gerenciar_produtos_tab.dart';
 import 'gerenciar_categorias_tab.dart';
@@ -91,6 +92,14 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
         icon: Icons.local_shipping_outlined,
         selectedIcon: Icons.local_shipping,
         tela: AdminFreteScreen(baseUrl: widget.baseUrl, token: widget.token),
+        perfisPermitidos: ['admin', 'gestor'],
+      ),
+      // 🌟 NOVO MENU: Personalização da AppBar do Aplicativo
+      MenuItemPortal(
+        label: 'Visual App',
+        icon: Icons.web_rounded,
+        selectedIcon: Icons.web,
+        tela: ConfiguracoesAppBarScreen(baseUrl: widget.baseUrl, token: widget.token),
         perfisPermitidos: ['admin', 'gestor'],
       ),
       MenuItemPortal(
@@ -271,10 +280,8 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Define que telas com menos de 800px de largura são mobile
         final isMobile = constraints.maxWidth < 800;
 
-        // Cabeçalho unificado para as duas versões (com AppBar nativo para Mobile)
         final appBar = AppBar(
           backgroundColor: Colors.white,
           elevation: 1,
@@ -339,7 +346,6 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
           ],
         );
 
-        // O Menu Lateral (NavigationRail) extraído como widget
         Widget buildMenuLateral() {
           return Container(
             width: 110,
@@ -377,7 +383,7 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
                         selectedIndex: _indiceSelecionado,
                         onDestinationSelected: (int index) {
                           setState(() => _indiceSelecionado = index);
-                          if (isMobile) Navigator.pop(context); // Fecha o drawer no celular ao clicar
+                          if (isMobile) Navigator.pop(context);
                         },
                         labelType: NavigationRailLabelType.all,
                         selectedIconTheme: const IconThemeData(color: Colors.white, size: 24),
@@ -400,7 +406,6 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
           );
         }
 
-        // Conteúdo central da tela (A Aba que foi clicada)
         Widget buildConteudoAtivo() {
           return Container(
             margin: EdgeInsets.all(isMobile ? 10 : 20),
@@ -419,19 +424,17 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
           );
         }
 
-        // Retorna a estrutura com base no dispositivo
         if (isMobile) {
           return Scaffold(
             backgroundColor: const Color(0xFFF8FAFC),
             appBar: appBar,
             drawer: Drawer(
-              child: buildMenuLateral(), // Menu no Drawer deslizante!
+              child: buildMenuLateral(),
             ),
             body: buildConteudoAtivo(),
           );
         }
 
-        // Layout original para Computador/Tablet
         return Scaffold(
           backgroundColor: const Color(0xFFF8FAFC),
           body: Row(

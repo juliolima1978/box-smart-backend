@@ -801,7 +801,7 @@ class _FormularioSecaoDialogState extends State<_FormularioSecaoDialog> {
                         dense: true,
                         value: marcado,
                         title: Text(p['nome'] ?? 'Produto', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text('ID: $pId • R\$ ${preco.toStringAsFixed(2)}'),
+                        subtitle: Text('ID: $pId | R\$ ${preco.toStringAsFixed(2)}'),
                         onChanged: (val) {
                           setState(() {
                             if (val == true) {

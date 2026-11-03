@@ -42,12 +42,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic> _footerData = {};
   bool _carregandoConfig = true;
 
-  // 🎛️ Variáveis para a AppBar Customizável
-  Map<String, dynamic> _configAppbar = {};
-  bool _carregandoConfigAppbar = true;
-  late final ScrollController _scrollControllerDepartamentos;
-  static const int _fatorLoopInfinito = 10000;
-
   List<dynamic> _departamentosBackend = [];
   bool _carregandoDepartamentos = true;
 
@@ -77,19 +71,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _bannerController = PageController();
-
-    // Inicializa o ScrollController do loop infinito dos departamentos centralizado
-    _scrollControllerDepartamentos = ScrollController(
-      initialScrollOffset: 84.0 * ((_departamentosBackend.length * _fatorLoopInfinito) ~/ 2),
-    );
-
     _futuroHome = _buscarHomeDinamica();
     _verificarNotificacoesNaoLidas();
     _carregarFavoritos();
     _carregarDepartamentos();
     _carregarProdutosGerais();
     _carregarConfiguracoesApp();
-    _carregarConfiguracoesAppbar(); // Busca a configuração visual da AppBar
     _carregarCarrinhoLocal();
   }
 
@@ -99,7 +86,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _carregarDepartamentos();
     _carregarProdutosGerais();
     _carregarConfiguracoesApp();
-    _carregarConfiguracoesAppbar();
 
     setState(() {
       _futuroHome = _buscarHomeDinamica();
@@ -177,28 +163,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _carregarConfiguracoesAppbar() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/configuracoes-app'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${widget.token}',
-        },
-      );
-
-      if (response.statusCode == 200 && mounted) {
-        setState(() {
-          _configAppbar = jsonDecode(response.body);
-          _carregandoConfigAppbar = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Erro ao carregar configurações da AppBar: $e');
-      if (mounted) setState(() => _carregandoConfigAppbar = false);
-    }
-  }
-
   Future<void> _verificarNotificacoesNaoLidas() async {
     try {
       final response = await http.get(
@@ -261,36 +225,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (_) {}
     return const Color(0xFFFFFFFF);
-  }
-
-  Color _parseCorHex(String? hexColor) {
-    if (hexColor == null || hexColor.isEmpty) return const Color(0xFF0F172A);
-    try {
-      String hex = hexColor.replaceAll('#', '');
-      if (hex.length == 6) hex = 'FF$hex';
-      return Color(int.parse(hex, radix: 16));
-    } catch (_) {
-      return const Color(0xFF0F172A);
-    }
-  }
-
-  // 💰 Cálculo dinâmico do valor total atual do carrinho para exibir na AppBar
-  double get _valorTotalCarrinhoHome {
-    double total = 0.0;
-    _carrinho.forEach((prodId, qtdOrGramas) {
-      final prod = _produtosBackend.firstWhere(
-            (p) => (int.tryParse(p['id']?.toString() ?? p['codigo']?.toString() ?? '-1') == prodId),
-        orElse: () => null,
-      );
-      if (prod != null) {
-        final double preco = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
-        final String un = (prod['unidade'] ?? prod['unidade_medida'] ?? '').toString().toLowerCase();
-        final bool pesavel = un.contains('kg') || un.contains('g');
-        double fator = pesavel ? (qtdOrGramas / 1000.0) : qtdOrGramas.toDouble();
-        total += preco * fator;
-      }
-    });
-    return total;
   }
 
   Future<void> _carregarProdutosGerais() async {
@@ -415,7 +349,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _bannerController.dispose();
-    _scrollControllerDepartamentos.dispose();
     super.dispose();
   }
 
@@ -518,77 +451,6 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.of(context).pop();
       },
       child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: _parseCorHex(_configAppbar['appbar_cor_fundo']),
-          foregroundColor: _parseCorHex(_configAppbar['appbar_cor_icones']),
-          elevation: 0.5,
-          title: Text(
-            _configAppbar['appbar_titulo_texto'] ?? 'Box Smart',
-            style: TextStyle(
-              color: _parseCorHex(_configAppbar['appbar_cor_icones']),
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          actions: [
-            // 🛒 Botão de resumo do carrinho na AppBar (Aparece se houver itens)
-            if (_carrinho.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CartScreen(
-                          clienteId: widget.clienteId,
-                          token: widget.token,
-                          carrinho: _carrinho,
-                          produtos: _produtosBackend,
-                          clienteNome: widget.clienteNome,
-                          favoritosIds: _favoritosIds,
-                          onLimparCarrinho: () {
-                            setState(() {
-                              _carrinho.clear();
-                            });
-                            _salvarCarrinhoLocal();
-                          },
-                        ),
-                      ),
-                    ).then((_) {
-                      if (mounted) {
-                        setState(() {});
-                        _salvarCarrinhoLocal();
-                      }
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade700,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.shopping_cart_outlined, size: 16, color: Colors.white),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${_carrinho.values.fold(0, (sum, element) => sum + element)} | R\$ ${_valorTotalCarrinhoHome.toStringAsFixed(2).replaceAll('.', ',')}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
         body: telas[_indiceAtual],
         bottomNavigationBar: Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -714,87 +576,373 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeConteudo(BuildContext context) {
+    final double topPadding = MediaQuery.of(context).padding.top;
+    final double alturaCabecalho = 155 + topPadding;
+
     return Container(
       color: Colors.grey.shade50,
-      child: RefreshIndicator(
-        color: AppColors.primaria,
-        backgroundColor: Colors.white,
-        onRefresh: _recarregarHome,
-        child: FutureBuilder<List<dynamic>>(
-          future: _futuroHome,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(40.0),
-                  child: CircularProgressIndicator(),
+      child: Stack(
+        children: [
+          RefreshIndicator(
+            color: AppColors.primaria,
+            backgroundColor: Colors.white,
+            displacement: alturaCabecalho + 20,
+            onRefresh: _recarregarHome,
+            child: FutureBuilder<List<dynamic>>(
+              future: _futuroHome,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                final secoes = snapshot.data ?? [];
+
+                return CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    // TODO
+                    // 🌟 Reduzimos a altura para que o conteúdo invada o espaço da barra arredondada
+                    SliverToBoxAdapter(
+                      child: SizedBox(height: alturaCabecalho - 12),
+                    ),
+                    for (var secao in secoes) _buildSliverSecao(secao),
+                    SliverToBoxAdapter(child: _buildFooter(context)),
+                  ],
+                );
+              },
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: alturaCabecalho,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(24),
                 ),
-              );
-            }
-
-            final secoes = snapshot.data ?? [];
-
-            return CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                // Barra de pesquisa fixa no topo da home (abaixo da AppBar)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Container(
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: TextField(
-                        readOnly: true,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SearchScreen(
-                                clienteId: widget.clienteId,
-                                token: widget.token,
-                                carrinho: _carrinho,
-                                favoritosIds: _favoritosIds,
-                                produtosListaGlobal: _produtosBackend,
-                              ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 3,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              padding: EdgeInsets.only(
+                top: topPadding + 8,
+                left: 16,
+                right: 16,
+                bottom: 10,
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Image.asset(
+                              'assets/icones/circle-user (2).png',
+                              color: AppColors.primaria,
+                              height: 26,
                             ),
-                          ).then((_) {
-                            if (mounted) {
-                              setState(() {});
-                              _salvarCarrinhoLocal();
-                            }
-                          });
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'O que você procura hoje?',
-                          hintStyle: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade500,
+                            iconSize: 22,
+                            tooltip: 'Perfil',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProfileScreen(
+                                    clienteId: widget.clienteId,
+                                    token: widget.token,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                          prefixIcon: Icon(
-                            Icons.search_rounded,
-                            color: Colors.grey.shade500,
-                            size: 20,
+                          Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              IconButton(
+                                icon: Image.asset(
+                                  'assets/icones/order-history_thin.png',
+                                  width: 24,
+                                  height: 24,
+                                  fit: BoxFit.contain,
+                                  color: AppColors.primaria,
+                                  colorBlendMode: BlendMode.srcIn,
+                                ),
+                                tooltip: 'Carrinho',
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => CartScreen(
+                                        clienteId: widget.clienteId,
+                                        token: widget.token,
+                                        carrinho: _carrinho,
+                                        produtos: _produtosBackend,
+                                        clienteNome: widget.clienteNome,
+                                        favoritosIds: _favoritosIds,
+                                        onLimparCarrinho: () {
+                                          setState(() {
+                                            _carrinho.clear();
+                                          });
+                                          _salvarCarrinhoLocal();
+                                        },
+                                      ),
+                                    ),
+                                  ).then((_) {
+                                    if (mounted) {
+                                      setState(() {});
+                                      _salvarCarrinhoLocal();
+                                    }
+                                  });
+                                },
+                              ),
+                              if (_carrinho.values.fold(
+                                0,
+                                    (sum, element) => sum + element,
+                              ) >
+                                  0)
+                                Positioned(
+                                  right: 9,
+                                  top: 5,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      '${_carrinho.entries.where((e) => e.value > 0).length}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 10,
+                        ],
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: SizedBox(
+                            height: 75,
+                            child: _logoUrl.isNotEmpty
+                                ? (_logoUrl.startsWith('http')
+                                ? Image.network(
+                              _logoUrl,
+                              fit: BoxFit.contain,
+                              errorBuilder:
+                                  (
+                                  context,
+                                  error,
+                                  stackTrace,
+                                  ) => Image.asset(
+                                'assets/logogimptesc.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                const Text(
+                                  'BOX SMART',
+                                  style: TextStyle(
+                                    color:
+                                    AppColors.primaria,
+                                    fontSize: 15,
+                                    fontWeight:
+                                    FontWeight.w900,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                              ),
+                            )
+                                : Image.asset(
+                              _logoUrl,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  Image.asset(
+                                    'assets/logogimptesc.png',
+                                    fit: BoxFit.contain,
+                                  ),
+                            ))
+                                : Image.asset(
+                              'assets/logogimptesc.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Text(
+                                  'BOX SMART',
+                                  style: TextStyle(
+                                    color: AppColors.primaria,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.5,
+                                  ),
+                                );
+                              },
+                            ),
                           ),
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Image.asset(
+                              'assets/icones/heart_thin.png',
+                              width: 22,
+                              height: 22,
+                              fit: BoxFit.contain,
+                              color: AppColors.primaria,
+                              colorBlendMode: BlendMode.srcIn,
+                            ),
+                            tooltip: 'Meus Favoritos',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FavoritesScreen(
+                                    clienteId: widget.clienteId,
+                                    token: widget.token,
+                                    baseUrl: baseUrl,
+                                    carrinho: _carrinho,
+                                    favoritosIds: _favoritosIds,
+                                    produtosListaGlobal: _produtosBackend,
+                                    onAtualizouCarrinho: () {},
+                                  ),
+                                ),
+                              ).then((_) {
+                                if (mounted) {
+                                  setState(() {});
+                                  _salvarCarrinhoLocal();
+                                }
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: Stack(
+                              children: [
+                                Image.asset(
+                                  'assets/icones/bell (1).png',
+                                  color: AppColors.primaria,
+                                  height: 22,
+                                ),
+                                if (_totalNotificacoesNaoLidas > 0)
+                                  Positioned(
+                                    right: 1,
+                                    top: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 14,
+                                        minHeight: 14,
+                                      ),
+                                      child: Text(
+                                        '$_totalNotificacoesNaoLidas',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => NotificacoesScreen(
+                                    clienteId: widget.clienteId,
+                                    token: widget.token,
+                                    baseUrl: baseUrl,
+                                  ),
+                                ),
+                              ).then((_) {
+                                _verificarNotificacoesNaoLidas();
+                                if (mounted) setState(() {});
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: TextField(
+                      readOnly: true,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SearchScreen(
+                              clienteId: widget.clienteId,
+                              token: widget.token,
+                              carrinho: _carrinho,
+                              favoritosIds: _favoritosIds,
+                              produtosListaGlobal: _produtosBackend,
+                            ),
+                          ),
+                        ).then((_) {
+                          if (mounted) {
+                            setState(() {});
+                            _salvarCarrinhoLocal();
+                          }
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'O que você procura hoje?',
+                        hintStyle: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: Colors.grey.shade500,
+                          size: 20,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10,
                         ),
                       ),
                     ),
                   ),
-                ),
-                for (var secao in secoes) _buildSliverSecao(secao),
-                SliverToBoxAdapter(child: _buildFooter(context)),
-              ],
-            );
-          },
-        ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -802,6 +950,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSliverSecao(Map<String, dynamic> secao) {
     final String tipo = (secao['tipo'] ?? 'padrao').toString().toLowerCase();
     final String tituloSecao = secao['titulo'] ?? 'Seção';
+    // Chave única para identificar a página atual dos dots desta seção no mapa
     final String secaoKey = '${tituloSecao}_${secao.hashCode}';
 
     switch (tipo) {
@@ -1056,12 +1205,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 )
                     : ListView.builder(
-                  controller: _scrollControllerDepartamentos,
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: _departamentosBackend.isNotEmpty
-                      ? _departamentosBackend.length * _fatorLoopInfinito
-                      : 0,
+                  itemCount: _departamentosBackend.length * 1000,
                   itemBuilder: (context, index) {
                     final realIndex =
                         index % _departamentosBackend.length;
@@ -1139,7 +1285,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ],
                               ),
-                              child: eFotoCompleta &&
+                              child:
+                              eFotoCompleta &&
                                   imagemUrl != null &&
                                   imagemUrl.startsWith('http')
                                   ? ClipOval(
@@ -1166,7 +1313,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               )
                                   : Padding(
                                 padding: const EdgeInsets.all(14.0),
-                                child: imagemUrl != null &&
+                                child:
+                                imagemUrl != null &&
                                     imagemUrl.startsWith('http')
                                     ? Image.network(
                                   imagemUrl,
@@ -1247,6 +1395,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 🏷️ Título da Seção alinhado com a margem padrão (16px)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
@@ -1259,11 +1408,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+
+                // 🔄 Carrossel ajustado sem espaçamento lateral esquerdo
                 SizedBox(
                   height: 310,
                   child: PageView.builder(
+                    // Zeramos o padding do PageView e ajustamos a fração para fluidez perfeita
                     controller: PageController(viewportFraction: 0.52),
-                    padEnds: false,
+                    padEnds: false, // 👈 ESSA É A CHAVE! Impede que o PageView dê recuo automático nas pontas
                     itemCount: produtosSecao.length,
                     onPageChanged: (index) {
                       setState(() {
@@ -1273,8 +1425,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemBuilder: (context, index) {
                       final prod = produtosSecao[index];
                       return Container(
+                        // Margem apenas leve entre os cards, sem empurrar o primeiro
                         margin: EdgeInsets.only(
-                          left: index == 0 ? 16 : 6,
+                          left: index == 0 ? 16 : 6, // 👈 O primeiro card gruda perfeitamente na margem de 16px da tela
                           right: 6,
                         ),
                         child: ProdutoCard(
@@ -1315,6 +1468,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                // 🔘 Indicadores de Página (Dots em formato de pílula)
                 if (produtosSecao.length > 1)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

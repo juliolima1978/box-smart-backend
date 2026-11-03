@@ -578,7 +578,7 @@ class VincularCPFSchema(BaseModel):
     cpf: str
 
 class FooterConfig(BaseModel):
-    texto_copyright: str = "© 2026 BEMG Tecnologia e sistemas. Todos os direitos reservados."
+    texto_copyright: str = "© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados."
     telefone_suporte: str = "11932020223"
     mensagem_suporte: str = "Olá! Preciso de suporte com o aplicativo Box Smart."
     termos_url: Optional[str] = "https://boxsmart.com.br/termos"
@@ -587,7 +587,7 @@ class FooterConfig(BaseModel):
 CONFIG_APP_CACHE = {
     "logo_url": "https://i.imgur.com/6tJyuYb.png",
     "footer": {
-        "texto_copyright": "© 2026 BEMG Tecnologia e sistemas. Todos os direitos reservados.",
+        "texto_copyright": "© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados.",
         "telefone_suporte": "11932020223",
         "mensagem_suporte": "Olá! Preciso de ajuda com meu pedido no Box Smart.",
         "termos_url": "https://boxsmart.com.br/termos",
@@ -601,7 +601,7 @@ def obter_configuracoes_app():
     return {
         "logo_url": "https://i.imgur.com/6tJyuYb.png",
         "footer": {
-            "texto_copyright": "© 2026 BEMG Tecnologia e sistemas. Todos os direitos reservados.",
+            "texto_copyright": "© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados.",
             "subtitulo": "Seu supermercado online completo e rápido.",
             "telefone_suporte": "11932020223",
             "mensagem_suporte": "Olá! Preciso de ajuda com meu pedido."
