@@ -267,10 +267,17 @@ def salvar_produtos_no_postgres(produtos: list, db: Session) -> tuple[int, list]
                 prod_db.ativo = p["ativo"]
                 houve_alteracao = True
             
-            # Se o WebSac enviar uma oferta nova, atualiza o preco_clube.
-            if p["preco_clube"] is not None and float(prod_db.preco_clube or 0.0) != p["preco_clube"]:
-                 prod_db.preco_clube = p["preco_clube"]
-                 houve_alteracao = True
+           # 🌟 CORREÇÃO: Permite atualizar/limpar o preco_clube caso a promoção tenha expirado ou sido removida
+            preco_clube_novo = p["preco_clube"]
+            preco_clube_atual = float(prod_db.preco_clube or 0.0) if prod_db.preco_clube is not None else None
+            
+            # Normaliza valores nulos para comparação segura
+            novo_val = float(preco_clube_novo) if preco_clube_novo is not None else 0.0
+            atual_val = float(preco_clube_atual) if preco_clube_atual is not None else 0.0
+
+            if atual_val != novo_val:
+                prod_db.preco_clube = preco_clube_novo # Pode ser o novo preço ou NULL se expirou
+                houve_alteracao = True
 
             if houve_alteracao:
                 # Adiciona à lista de alterados apenas para fins de log

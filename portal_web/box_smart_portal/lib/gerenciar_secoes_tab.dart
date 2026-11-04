@@ -40,20 +40,13 @@ class _GerenciarSecoesTabState extends State<GerenciarSecoesTab> {
   Future<void> _carregarDados() async {
     setState(() => _isLoading = true);
     try {
+      // 🌟 Buscamos diretamente a rota de administração de seções
       final resSecoes = await http.get(
         Uri.parse('${widget.baseUrl}/admin/secoes/'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
       );
 
-      final String uriSecoes = resSecoes.statusCode == 200
-          ? '${widget.baseUrl}/admin/secoes/'
-          : '${widget.baseUrl}/api/home';
-
-      final resFinalSecoes = await http.get(
-        Uri.parse(uriSecoes),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
-      );
-
+      // 🌟 Buscamos o catálogo geral de produtos para preencher os checkboxes do modal
       final resProds = await http.get(
         Uri.parse('${widget.baseUrl}/api/produtos/'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
@@ -61,17 +54,24 @@ class _GerenciarSecoesTabState extends State<GerenciarSecoesTab> {
 
       if (mounted) {
         setState(() {
-          if (resFinalSecoes.statusCode == 200) {
-            _secoes = jsonDecode(resFinalSecoes.body) ?? [];
+          if (resSecoes.statusCode == 200) {
+            _secoes = jsonDecode(resSecoes.body) ?? [];
+          } else {
+            _secoes = [];
           }
+
           if (resProds.statusCode == 200) {
             _produtosLista = jsonDecode(resProds.body) ?? [];
+          } else {
+            _produtosLista = [];
           }
+
           _isLoading = false;
         });
       }
     } catch (e) {
       _mostrarErro('Erro ao carregar dados: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -300,7 +300,7 @@ class _GerenciarSecoesTabState extends State<GerenciarSecoesTab> {
             ),
           ),
 
-          // 4. LISTAGEM DE SEÇÕES EMPILHADA (Blindada contra overflow)
+          // 4. LISTAGEM DE SEÇÕES EMPILHADA
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -323,10 +323,14 @@ class _GerenciarSecoesTabState extends State<GerenciarSecoesTab> {
                   final int ordem = s['ordem'] ?? 0;
                   final bool ativa = s['ativa'] ?? true;
 
+                  // 🌟 Captura os produtos específicos vinculados a esta seção
                   List prodsVinculados = s['produtos'] ?? [];
-                  int qtdProds = prodsVinculados.isNotEmpty
-                      ? prodsVinculados.length
-                      : (s['produto_ids'] as List?)?.length ?? 0;
+                  int qtdProds = prodsVinculados.length;
+
+                  // 🌟 Gera uma string formatada com os nomes dos produtos da seção
+                  String nomesProdutos = prodsVinculados.isNotEmpty
+                      ? prodsVinculados.map((p) => p['nome']?.toString() ?? '').where((n) => n.isNotEmpty).join(', ')
+                      : 'Nenhum produto vinculado';
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -377,6 +381,18 @@ class _GerenciarSecoesTabState extends State<GerenciarSecoesTab> {
                                   ),
                                 ],
                               ),
+
+                              // 🌟 Exibe explicitamente quais itens compõem esta seção no painel web
+                              if (tipo != 'departamentos' && tipo != 'banner_com_titulo') ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Itens: $nomesProdutos',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+
                               const SizedBox(height: 8),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -578,6 +594,7 @@ class _FormularioSecaoDialogState extends State<_FormularioSecaoDialog> {
 
     ativa = secao?['ativa'] ?? true;
 
+    // 🔥 Garante que recupera corretamente os IDs já salvos na seção
     List<dynamic> prodsAtuais = secao?['produtos'] ?? [];
     List<dynamic> idsIniciais = secao?['produto_ids'] ?? prodsAtuais.map((p) => p['id']).toList();
 
