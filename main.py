@@ -35,6 +35,7 @@ from database import engine, get_db, SessionLocal
 from models import Pedido, Produto, ItemPedido, Categoria, Favorito, Endereco, Cliente, ConfiguracaoApp
 from treinar_recomendacao import treinar_motor_recomendacao
 from routers.frete import router as frete_router
+from sqlalchemy import text # Importante para rodar SQL bruto
 
 
 # Tenta importar o cliente WebSac (deve existir websac_client.py no projeto)
@@ -82,7 +83,44 @@ try:
 except Exception as e:
     print(f"⚠️ Erro ao inicializar o Firebase: {e}")
     
+    
+# ==========================================
+# 🔄 FUNÇÃO PARA ATUALIZAR PREÇOS DE PROMOÇÃO
+# ==========================================
 
+# Função que será disparada pelo agendador às 03:00
+async def rotina_manutencao_precos_madrugada():
+    print("🕒 [Madrugada 03:00] Iniciando rotina de limpeza e atualização de preços...")
+    
+    # 1. Abre uma sessão do banco de dados (ajuste conforme a sua injeção de dependência do SQLAlchemy)
+    db = SessionLocal() 
+    try:
+        # Força a limpeza de qualquer preço de clube preso/vencido na base
+        db.execute(text("UPDATE produtos SET preco_clube = NULL;"))
+        db.commit()
+        print("✨ [Madrugada 03:00] Limpeza em massa de preco_clube executada com sucesso!")
+        
+        # 2. Chama a sua rotina de sincronização total do WebSac para atualizar com os dados novos do dia
+        await rotina_carga_total() # Substitua pelo nome da função real que faz a carga do WebSac
+        print("🚀 [Madrugada 03:00] Carga total do WebSac finalizada com sucesso!")
+        
+    except Exception as e:
+        db.rollback()
+        print(f"❌ [Madrugada 03:00] Erro na rotina de atualização de preços: {e}")
+    finally:
+        db.close()
+
+# Configuração do Agendador APScheduler (adicione no startup do seu app)
+scheduler = BackgroundScheduler()
+scheduler.add_job(
+    rotina_manutencao_precos_madrugada,
+    CronTrigger(hour=3, minute=0),
+    id="manutencao_precos_0300",
+    replace_existing=True
+)
+scheduler.start()    
+    
+        
 # ==========================================
 # 🔄 ROTINAS E GRAVAÇÃO DO WEBSAC / FIREBASE / POSTGRESQL
 # ==========================================
