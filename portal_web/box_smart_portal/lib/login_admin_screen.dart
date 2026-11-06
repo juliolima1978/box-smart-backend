@@ -53,29 +53,43 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
         const perfisPermitidos = ['admin', 'gestor', 'separador', 'entregador'];
 
         if (perfisPermitidos.contains(perfil)) {
+          // 🌟 SALVA COM AS CHAVES PADRONIZADAS PARA O MAIN.DART RECONHECER
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('token', token);
-          await prefs.setString('user_nome', nomeUsuario);
+          await prefs.setString('auth_token', token);
+          await prefs.setString('nome_separador', nomeUsuario);
           await prefs.setString('user_perfil', perfil);
 
           if (!mounted) return;
 
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AdminPortalScreen(
-                baseUrl: widget.baseUrl,
-                token: token,
+          // 🌟 REDIRECIONAMENTO ESPECÍFICO PARA SEPARADOR OU ADMIN/GESTOR
+          if (perfil == 'separador') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FilaPedidosSeparadorScreen(
+                  baseUrl: widget.baseUrl,
+                  token: token,
+                  nomeSeparador: nomeUsuario,
+                ),
               ),
-            ),
-          );
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AdminPortalScreen(
+                  baseUrl: widget.baseUrl,
+                  token: token,
+                ),
+              ),
+            );
+          }
         } else {
           setState(() {
             _errorMessage = 'Acesso negado. A conta ($perfil) não possui permissão operacional.';
           });
         }
       } else {
-        // 🌟 TRATAMENTO DE ERRO DO BACKEND (Ex: 401 Senha errada, 404 Usuário não encontrado)
         String mensagemErroApi = 'E-mail ou senha incorretos.';
         try {
           final errorData = jsonDecode(response.body);

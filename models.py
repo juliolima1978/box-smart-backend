@@ -225,6 +225,7 @@ class ItemPedido(Base):
     produto_id = Column(Integer, ForeignKey("produtos.id"))
     quantidade = Column(Float, nullable=False)
     preco_unitario = Column(Float, nullable=False)
+    observacao_corte = Column(String, nullable=True)
 
     # Relacionamentos
     pedido = relationship("Pedido", back_populates="itens")

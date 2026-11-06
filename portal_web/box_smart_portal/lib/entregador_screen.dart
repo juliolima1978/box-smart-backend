@@ -1125,16 +1125,19 @@ class _EntregadorScreenState extends State<EntregadorScreen>
                   ...itens.map((item) {
                     final String nomeProd = item['nome'] ?? item['nome_produto'] ?? 'Produto';
 
-                    // 👇 AQUI ESTÁ A MÁGICA DA CORREÇÃO:
-                    final int qtd = (item['quantidade'] as num?)?.toInt() ?? 1;
+                    // 🌟 CORREÇÃO FEITA AQUI: Lê como double e formata para suportar pesáveis (ex: 0.5 kg)
+                    final double qtd = (item['quantidade'] as num?)?.toDouble() ?? 1.0;
+                    final String qtdStr = qtd % 1 == 0
+                        ? qtd.toInt().toString()
+                        : qtd.toStringAsFixed(3).replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2.0),
-                      child: Text('• $qtd x $nomeProd',
+                      child: Text('• $qtdStr x $nomeProd',
                           style: const TextStyle(
                               fontSize: 13, color: Color(0xFF334155))),
                     );
-                  }).toList(), // 👈 Adicione .toList() se o map reclamar de Iterable
+                  }).toList(),
 
                   const SizedBox(height: 16),
                   const Divider(height: 1),

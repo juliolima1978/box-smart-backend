@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:audioplayers/audioplayers.dart';
+
+import 'login_admin_screen.dart';
 
 class FilaPedidosSeparadorScreen extends StatefulWidget {
   final String baseUrl;
@@ -233,114 +236,6 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
   }
 
   // ==========================================
-  // 🔍 MODAL DE VISUALIZAÇÃO EXPANDIDA DO PRODUTO
-  // ==========================================
-  void _exibirModalProdutoExpandido(Map<String, dynamic> item) {
-    final String nome = item['nome'] ?? 'Produto';
-    final String? imagemUrl = item['imagem_url'];
-    final int quantidade = item['quantidade'] ?? 1;
-    final double precoUnitario = (item['preco_unitario'] as num?)?.toDouble() ?? 0.0;
-    final String categoria = item['categoria_nome'] ?? item['categoria'] ?? 'Geral';
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          nome,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 200,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: imagemUrl != null && imagemUrl.startsWith('http')
-                    ? InteractiveViewer(
-                  minScale: 0.5,
-                  maxScale: 4.0,
-                  child: Image.network(
-                    imagemUrl,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.image_not_supported,
-                      size: 60,
-                      color: Colors.grey,
-                    ),
-                  ),
-                )
-                    : const Icon(Icons.shopping_bag, size: 60, color: Colors.grey),
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              '💡 Dica: Dê uma pinça com os dedos na imagem para aproximar.',
-              style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Chip(
-                  label: Text(categoria),
-                  backgroundColor: Colors.blue.shade50,
-                  labelStyle: TextStyle(color: Colors.blue.shade900, fontSize: 12),
-                ),
-                Text(
-                  'Qtd: $quantidade',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Preço Unitário:'),
-                Text(
-                  'R\$ ${precoUnitario.toStringAsFixed(2).replaceAll('.', ',')}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Subtotal Item:'),
-                Text(
-                  'R\$ ${(precoUnitario * quantidade).toStringAsFixed(2).replaceAll('.', ',')}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F172A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================
   // 🔍 FILTRO DE BUSCA DE PEDIDOS
   // ==========================================
   List<dynamic> _aplicarFiltroBusca(List<dynamic> lista) {
@@ -394,6 +289,51 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
         ),
         backgroundColor: const Color(0xFF0F172A),
         foregroundColor: Colors.white,
+        // 🌟 BOTÃO DE LOGOUT ADICIONADO AQUI
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+            tooltip: 'Sair da Conta',
+            onPressed: () async {
+              // Confirmação antes de sair (opcional, mas recomendado)
+              final bool? confirmar = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Encerrar Sessão'),
+                  content: const Text('Deseja realmente sair do aplicativo?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Sair', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirmar == true) {
+                // Limpa as credenciais salvas localmente
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+
+                if (!context.mounted) return;
+
+                // Redireciona para a tela de login limpando o histórico de navegação
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LoginAdminScreen(baseUrl: widget.baseUrl),
+                  ),
+                      (route) => false,
+                );
+              }
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.amber,
@@ -720,7 +660,7 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                       ),
                     ),
 
-                    // 🧮 ALERTA DE TROCO EM DINHEIRO (INSERIDO AQUI DE FORMA LIMPA)
+                    // 🧮 ALERTA DE TROCO EM DINHEIRO
                     if (temTrocoParaDinheiro)
                       Container(
                         padding: const EdgeInsets.all(10),
@@ -789,83 +729,117 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                           ...itensCategoria.map((item) {
                             final int itemId = item['id'] ?? 0;
                             final String nomeItem = item['nome'] ?? 'Produto';
+
+                            // 🌟 CORREÇÃO: Lê a quantidade como double para suportar pesos fracionados (ex: 0.8 kg)
+                            final double quantidade = (item['quantidade'] as num?)?.toDouble() ?? 1.0;
+
+                            // Formata a quantidade para exibir bonitinho (ex: 0.8 ou 2)
+                            final String qtdStr = quantidade % 1 == 0
+                                ? quantidade.toInt().toString()
+                                : quantidade.toStringAsFixed(3).replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
+
                             final bool marcado = _checklistItens[pedidoId]?[itemId] ?? false;
                             final bool emFalta = _itensFaltantes[pedidoId]?[itemId] ?? false;
 
+                            // 🌟 CARD DO ITEM COM IMAGEM MAIOR (100x100)
                             return Container(
-                              margin: const EdgeInsets.only(bottom: 4),
+                              margin: const EdgeInsets.only(bottom: 8),
                               decoration: BoxDecoration(
                                 color: emFalta ? Colors.red.shade50 : Colors.white,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: emFalta ? Colors.red.shade300 : Colors.grey.shade200),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: emFalta ? Colors.red.shade300 : Colors.grey.shade300),
                               ),
-                              child: ListTile(
-                                dense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                                onTap: () => _exibirModalProdutoExpandido(item),
-                                leading: ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
-                                    color: Colors.grey.shade100,
-                                    child: item['imagem_url'] != null && item['imagem_url'].toString().startsWith('http')
-                                        ? Image.network(item['imagem_url'], fit: BoxFit.cover)
-                                        : const Icon(Icons.image, size: 16, color: Colors.grey),
-                                  ),
-                                ),
-                                title: Text(
-                                  nomeItem,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: emFalta ? Colors.red.shade900 : Colors.black87,
-                                    decoration: (marcado && !ehConcluido) || emFalta ? TextDecoration.lineThrough : null,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                subtitle: Text(
-                                  'Qtd: ${item['quantidade']} | R\$ ${((item['preco_unitario'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
-                                  style: const TextStyle(fontSize: 10),
-                                ),
-                                trailing: ehConcluido
-                                    ? const Icon(Icons.check_circle, color: Colors.green, size: 18)
-                                    : Row(
-                                  mainAxisSize: MainAxisSize.min,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    if (podeFinalizar)
-                                      IconButton(
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        icon: Icon(
-                                          emFalta ? Icons.report_problem : Icons.report_problem_outlined,
-                                          color: emFalta ? Colors.red : Colors.grey.shade400,
-                                          size: 18,
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            final novoEstadoFalta = !emFalta;
-                                            _itensFaltantes[pedidoId]![itemId] = novoEstadoFalta;
-                                            if (novoEstadoFalta) _checklistItens[pedidoId]![itemId] = false;
-                                          });
-                                          if (_itensFaltantes[pedidoId]![itemId] == true) {
-                                            _abrirWhatsAppCliente(pedido, itemFaltanteNome: nomeItem);
-                                          }
-                                        },
+                                    // 🌟 IMAGEM AMPLIADA NA LISTAGEM
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        width: 80,
+                                        height: 80,
+                                        color: Colors.grey.shade100,
+                                        child: item['imagem_url'] != null && item['imagem_url'].toString().startsWith('http')
+                                            ? Image.network(
+                                          item['imagem_url'],
+                                          fit: BoxFit.cover,
+                                          width: 80,
+                                          height: 80,
+                                          errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 30, color: Colors.grey),
+                                        )
+                                            : const Icon(Icons.image, size: 30, color: Colors.grey),
                                       ),
-                                    const SizedBox(width: 4),
-                                    Checkbox(
-                                      visualDensity: VisualDensity.compact,
-                                      value: marcado,
-                                      activeColor: Colors.green,
-                                      onChanged: (podeFinalizar && !emFalta)
-                                          ? (bool? val) {
-                                        setState(() {
-                                          _checklistItens[pedidoId]![itemId] = val ?? false;
-                                        });
-                                      }
-                                          : null,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // NOME, QUANTIDADE E PREÇO DO PRODUTO
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            nomeItem,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: emFalta ? Colors.red.shade900 : Colors.black87,
+                                              decoration: (marcado && !ehConcluido) || emFalta ? TextDecoration.lineThrough : null,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'Qtd: $qtdStr | R\$ ${((item['preco_unitario'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
+                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1E3A8A)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    // BOTÕES DE AÇÃO (FALTA E CHECKBOX)
+                                    Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (podeFinalizar)
+                                              IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(),
+                                                icon: Icon(
+                                                  emFalta ? Icons.report_problem : Icons.report_problem_outlined,
+                                                  color: emFalta ? Colors.red : Colors.grey.shade400,
+                                                  size: 22,
+                                                ),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    final novoEstadoFalta = !emFalta;
+                                                    _itensFaltantes[pedidoId]![itemId] = novoEstadoFalta;
+                                                    if (novoEstadoFalta) _checklistItens[pedidoId]![itemId] = false;
+                                                  });
+                                                  if (_itensFaltantes[pedidoId]![itemId] == true) {
+                                                    _abrirWhatsAppCliente(pedido, itemFaltanteNome: nomeItem);
+                                                  }
+                                                },
+                                              ),
+                                            const SizedBox(width: 8),
+                                            Checkbox(
+                                              visualDensity: VisualDensity.compact,
+                                              value: marcado,
+                                              activeColor: Colors.green,
+                                              onChanged: (podeFinalizar && !emFalta)
+                                                  ? (bool? val) {
+                                                setState(() {
+                                                  _checklistItens[pedidoId]![itemId] = val ?? false;
+                                                });
+                                              }
+                                                  : null,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -878,7 +852,7 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
 
                     const SizedBox(height: 10),
 
-                    // BOTÕES DE AÇÃO
+                    // BOTÕES DE AÇÃO DO PEDIDO
                     if (podeIniciar)
                       SizedBox(
                         width: double.infinity,

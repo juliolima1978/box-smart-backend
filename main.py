@@ -2131,7 +2131,7 @@ def atualizar_status_pedido_unificado(
             "EM_SEPARACAO": f"Olá {pedido.cliente.nome}, nosso operador começou a separar o pedido #{pedido.id}.",
             "SEPARADO": f"Tudo pronto! Seu pedido #{pedido.id} já foi separado e aguarda a coleta.",
             "SAIU_PARA_ENTREGA": f"Seu pedido #{pedido.id} está a caminho com o entregador!",
-            "ENTREGUE": f"Seu pedido #{pedido.id} foi entregue. Bom apetite e obrigado por comprar no Box Smart!",
+            "ENTREGUE": f"Seu pedido #{pedido.id} foi entregue. Obrigado por comprar no Supermercado Tescarollo!",
             "CANCELADO": f"O pedido #{pedido.id} foi cancelado."
         }
 

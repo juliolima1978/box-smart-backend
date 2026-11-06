@@ -1,10 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_admin_screen.dart';
+import 'fila_pedidos_separador_screen.dart'; // Certifique-se de que o caminho do import está correto para a sua tela
 
-void main() {
-  runApp(const BoxSmartPortalApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Verifica se já existe uma sessão salva localmente
+  final prefs = await SharedPreferences.getInstance();
+  final String? tokenSalvo = prefs.getString('auth_token');
+  final String? nomeSalvo = prefs.getString('nome_separador');
+
+  const String baseUrl = 'https://box-smart-backend.onrender.com';
+
+  runApp(BoxSmartPortalApp(
+    tokenSalvo: tokenSalvo,
+    nomeSalvo: nomeSalvo,
+    baseUrl: baseUrl,
+  ));
 }
-
 
 // ==========================================
 // CONFIGURAÇÃO DE CORES E TEMA
@@ -20,13 +34,24 @@ class AppColors {
 }
 
 class BoxSmartPortalApp extends StatelessWidget {
-  const BoxSmartPortalApp({Key? key}) : super(key: key);
+  final String? tokenSalvo;
+  final String? nomeSalvo;
+  final String baseUrl;
 
+  const BoxSmartPortalApp({
+    Key? key,
+    this.tokenSalvo,
+    this.nomeSalvo,
+    required this.baseUrl,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Altere para o IP/porta do seu backend FastAPI
-    const String baseUrl = 'https://box-smart-backend.onrender.com';
+    // Se houver token e nome salvos, redireciona direto para a fila de separação
+    final bool jaEstaLogado = tokenSalvo != null &&
+        tokenSalvo!.isNotEmpty &&
+        nomeSalvo != null &&
+        nomeSalvo!.isNotEmpty;
 
     return MaterialApp(
       title: 'Box Smart - Portal Gestão',
@@ -34,7 +59,13 @@ class BoxSmartPortalApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const LoginAdminScreen(baseUrl: baseUrl),
+      home: jaEstaLogado
+          ? FilaPedidosSeparadorScreen(
+        baseUrl: baseUrl,
+        token: tokenSalvo!,
+        nomeSeparador: nomeSalvo!,
+      )
+          : LoginAdminScreen(baseUrl: baseUrl),
     );
   }
 }

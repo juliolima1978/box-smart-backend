@@ -1167,11 +1167,11 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
                   title: const Text(
-                    'Retirada no Box Smart (Grátis)',
+                    'Retirada no Tescarollo (Grátis)',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                   subtitle: const Text(
-                    'Retire diretamente no armário inteligente',
+                    'Retire diretamente na loja',
                     style: TextStyle(fontSize: 11, color: Colors.grey),
                   ),
                   value: 'retirada',

@@ -82,10 +82,10 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/app_icon2.png"
+  image_path: "assets/icon_tesca1.png"
   remove_alpha_ios: true # 👈 Adicione esta linha para remover a transparência no iOS
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/app_icon2.png"
+  adaptive_icon_foreground: "assets/icon_tesca1.png"
 
   # To add assets to your application, add an assets section, like this:
   # assets:
