@@ -90,7 +90,16 @@ class _ProdutoCardState extends State<ProdutoCard> {
 
   void _abrirModalPeso() {
     final prod = _produtoCompleto;
-    int gramasAtuais = _quantidadeNoCarrinho > 0 ? _quantidadeNoCarrinho : 250;
+    final String nomeProd = (prod['nome'] ?? '').toString().toLowerCase();
+
+    // Identifica se é do açougue/carne
+    final bool ehAcougue = nomeProd.contains('patinho') || nomeProd.contains('alcatra') ||
+        nomeProd.contains('contra') || nomeProd.contains('moída') ||
+        nomeProd.contains('carne') || nomeProd.contains('frango') ||
+        (prod['categoria_nome'] ?? '').toString().toLowerCase().contains('açougue');
+
+    String corteSelecionado = 'Em bife';
+    int gramasAtuais = _quantidadeNoCarrinho > 0 ? _quantidadeNoCarrinho : 500;
     double kgInicial = gramasAtuais / 1000.0;
 
     final TextEditingController pesoController = TextEditingController(
@@ -100,63 +109,91 @@ class _ProdutoCardState extends State<ProdutoCard> {
     showDialog(
       context: context,
       builder: (modalContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              const Icon(Icons.scale_rounded, color: AppColors.primaria),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('Selecionar Peso: ${prod['nome'] ?? ''}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: SizedBox(
-              width: 300,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
                 children: [
-                  const Text('Informe a quantidade (kg):', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: pesoController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Peso (ex: 0,500 para 500g)', border: OutlineInputBorder(), suffixText: 'kg'),
-                    autofocus: true,
-                  ),
-                  const SizedBox(height: 14),
-                  const Text('Sugestões rápidas:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _botaoSugestao('250g', 0.25, pesoController),
-                      _botaoSugestao('500g', 0.50, pesoController),
-                      _botaoSugestao('1 kg', 1.00, pesoController),
-                      _botaoSugestao('1,5 kg', 1.50, pesoController),
-                    ],
+                  const Icon(Icons.scale_rounded, color: AppColors.primaria),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Selecionar Peso: ${prod['nome'] ?? ''}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ],
               ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(modalContext), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaria, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-              onPressed: () {
-                final double? pesoKg = double.tryParse(pesoController.text.replaceAll(',', '.'));
-                if (pesoKg == null || pesoKg <= 0) return;
-                final int gramas = (pesoKg * 1000).round();
-                _alterarQuantidade(gramas);
-                Navigator.pop(modalContext);
-              },
-              child: const Text('Confirmar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ],
+              content: SingleChildScrollView(
+                child: SizedBox(
+                  width: 300,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 🥩 OPÇÕES DE CORTE SE FOR DO AÇOUGUE
+                      if (ehAcougue) ...[
+                        const Text('Como deseja o corte?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+                        const SizedBox(height: 6),
+                        DropdownButtonFormField<String>(
+                          value: corteSelecionado,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'Em bife', child: Text('Em bife')),
+                            DropdownMenuItem(value: 'Peça inteira', child: Text('Peça inteira')),
+                            DropdownMenuItem(value: 'Moído', child: Text('Moído')),
+                            DropdownMenuItem(value: 'Em cubos / Iscas', child: Text('Em cubos / Iscas')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setStateModal(() => corteSelecionado = val);
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
+                      const Text('Informe a quantidade (kg):', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: pesoController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'Peso (ex: 0,500 para 500g)', border: OutlineInputBorder(), suffixText: 'kg'),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text('Sugestões rápidas:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _botaoSugestao('250g', 0.25, pesoController),
+                          _botaoSugestao('500g', 0.50, pesoController),
+                          _botaoSugestao('1 kg', 1.00, pesoController),
+                          _botaoSugestao('1,5 kg', 1.50, pesoController),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(modalContext), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaria, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                  onPressed: () {
+                    final double? pesoKg = double.tryParse(pesoController.text.replaceAll(',', '.'));
+                    if (pesoKg == null || pesoKg <= 0) return;
+                    final int gramas = (pesoKg * 1000).round();
+
+                    // Aqui salvamos a quantidade. Se precisar atrelar o corte, podemos gerenciar no carrinho ou salvar em um mapa auxiliar de cortes na HomeScreen.
+                    _alterarQuantidade(gramas);
+                    Navigator.pop(modalContext);
+                  },
+                  child: const Text('Confirmar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
         );
       },
     );

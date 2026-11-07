@@ -268,6 +268,7 @@ class PedidoCreate(BaseModel):
     valor_subtotal: float = 0.0 # 👈 ISSO PRECISA EXISTIR AQUI
     taxa_entrega: float = 0.0   # 👈 ISSO PRECISA EXISTIR AQUI
     valor_total: float = 0.0
+    observacao_corte: Optional[str] = None
 
 class ItemPedidoResponse(BaseModel):
     id: int

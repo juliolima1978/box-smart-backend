@@ -1973,7 +1973,8 @@ async def criar_pedido(
             pedido_id=novo_pedido.id,
             produto_id=item['produto_id'],
             quantidade=float(item['quantidade']),
-            preco_unitario=float(item.get('preco_unitario') or 0.0) # 👈 Confia 100% no app!
+            preco_unitario=float(item.get('preco_unitario') or 0.0), # 👈 Confia 100% no app!
+            observacao_corte=item.get('observacao_corte')
         )
         db.add(db_item)
     
@@ -2019,6 +2020,7 @@ def listar_pedidos_admin(status: Optional[str] = None, db: Session = Depends(get
                 "nome": item.produto.nome if item.produto else "Produto",
                 "quantidade": item.quantidade,
                 "preco_unitario": float(item.preco_unitario if item.preco_unitario is not None else 0.0),
+                "observacao_corte": getattr(item, 'observacao_corte', None),
                 "imagem_url": getattr(item.produto, 'imagem_url', None) if item.produto else None,
                 "categoria_nome": cat_nome,
                 "categoria": cat_nome

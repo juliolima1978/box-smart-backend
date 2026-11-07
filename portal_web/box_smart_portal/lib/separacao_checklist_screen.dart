@@ -79,7 +79,7 @@ class _SeparacaoChecklistScreenState extends State<SeparacaoChecklistScreen> {
     final int pedidoId = widget.pedido['id'] ?? 0;
     final cliente = widget.pedido['cliente'] ?? {};
 
-    // 🌟 Novas informações do pedido
+    // 🌟 Informações do pedido
     final String opcaoSubstituicao = (widget.pedido['opcao_substituicao'] ?? 'reembolso').toString();
     final bool desejaCpfNota = widget.pedido['deseja_cpf_nota'] == true;
     final String tipoEntrega = (widget.pedido['tipo_entrega'] ?? 'retirada').toString();
@@ -100,7 +100,7 @@ class _SeparacaoChecklistScreenState extends State<SeparacaoChecklistScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
         children: [
-          // 🌟 CARD DE INSTRUÇÕES DO CLIENTE (Visível para o Separador/Gestor)
+          // 🌟 CARD DE INSTRUÇÕES DO CLIENTE
           Container(
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.all(12),
@@ -212,6 +212,9 @@ class _SeparacaoChecklistScreenState extends State<SeparacaoChecklistScreen> {
                 final dynamic quantidade = item['quantidade'] ?? 1;
                 final bool separado = item['separado'] ?? false;
 
+                // 🥩 Capturando a informação de corte enviada pelo backend
+                final String? observacaoCorte = item['observacao_corte']?.toString();
+
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -225,7 +228,41 @@ class _SeparacaoChecklistScreenState extends State<SeparacaoChecklistScreen> {
                         color: separado ? Colors.grey : Colors.black87,
                       ),
                     ),
-                    subtitle: Text('Quantidade: $quantidade un', style: const TextStyle(fontSize: 11)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 2),
+                        Text('Quantidade: $quantidade un', style: const TextStyle(fontSize: 11)),
+
+                        // 🥩 Exibição destacada da informação de corte, se houver
+                        if (observacaoCorte != null && observacaoCorte.trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.content_cut, size: 12, color: Colors.redAccent),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Corte: $observacaoCorte',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red.shade900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     value: separado,
                     activeColor: const Color(0xFF1E3A8A),
                     onChanged: _isJaSeparado
