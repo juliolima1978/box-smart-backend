@@ -630,7 +630,7 @@ class FooterConfig(BaseModel):
     privacidade_url: Optional[str] = "https://boxsmart.com.br/privacidade"
 
 CONFIG_APP_CACHE = {
-    "logo_url": "https://i.imgur.com/QN2uciE.jpeg",
+    "logo_url": "https://i.imgur.com/easc80C.png",
     "footer": {
         "texto_copyright": "© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados.",
         "telefone_suporte": "11932020223",
@@ -644,7 +644,7 @@ CONFIG_APP_CACHE = {
 @app.get("/api/config/")
 def obter_configuracoes_app():
     return {
-        "logo_url": "https://i.imgur.com/QN2uciE.jpeg",
+        "logo_url": "https://i.imgur.com/easc80C.png",
         "footer": {
             "texto_copyright": "© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados.",
             "subtitulo": "Seu supermercado online completo e rápido.",
