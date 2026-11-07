@@ -2222,7 +2222,8 @@ def obter_detalhes_pedido(
             "quantidade": item.quantidade,
             
             # 👇 Ajuste no preço dos itens para respeitar o desconto
-            "preco_unitario": float(item.preco_unitario if item.preco_unitario is not None else 0.0) 
+            "preco_unitario": float(item.preco_unitario if item.preco_unitario is not None else 0.0),
+            "observacao_corte": getattr(item, 'observacao_corte', None)
         })
 
     return {

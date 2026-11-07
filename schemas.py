@@ -253,6 +253,7 @@ class ItemCarrinho(BaseModel):
     produto_id: int
     quantidade: float
     preco_unitario: float = 0.0
+    observacao_corte: Optional[str] = None
 
 class PedidoCreate(BaseModel):
     cliente_id: Optional[int] = None

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../main.dart';
+import '../services/corte_service.dart';
 import '../services/session_service.dart';
 import 'endereco_screen.dart';
 
@@ -1776,6 +1777,8 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
             'produto_id': prodId,
             'quantidade': quantidadeFinal,
             'preco_unitario': precoEfetivo,
+            // 🥩 ADICIONE ESTA LINHA PARA ENVIAR O CORTE:
+            'observacao_corte': CorteContextoGlobal.cortesSelecionados[prodId] ?? '',
           });
         }
       });

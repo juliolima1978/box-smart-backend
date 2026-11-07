@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../main.dart';
 import '../widgets/produto_card.dart';
+import '../services/corte_service.dart'; // 👈 Importando o arquivo que você criou
 
 class ProdutoDetalheScreen extends StatefulWidget {
   final int clienteId;
@@ -26,8 +27,9 @@ class ProdutoDetalheScreen extends StatefulWidget {
 }
 
 class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
+  // Variável local para armazenar o corte selecionado temporariamente nesta tela
+  String _corteSelecionadoAtual = 'Em bife';
 
-  // 1. O produto recebido via navegação (widget.produto) tem prioridade sobre a lista global
   Map<String, dynamic> get _produtoCompleto {
     final Map<String, dynamic> prodMap = {};
 
@@ -48,7 +50,6 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
       }
     }
 
-    // Sobrescreve com os dados do produto recebido diretamente na navegação (dados mais recentes)
     prodMap.addAll(Map<String, dynamic>.from(widget.produto));
     return prodMap;
   }
@@ -59,7 +60,6 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
     return int.tryParse(rawId.toString()) ?? (rawId is int ? rawId : widget.produto.hashCode);
   }
 
-  // 🥩 Identifica se o produto pertence ao açougue / carnes
   bool get _eDoAcougue {
     final prod = _produtoCompleto;
     final String nome = (prod['nome'] ?? '').toString().toLowerCase();
@@ -71,7 +71,6 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
         nome.contains('costela') || nome.contains('acém');
   }
 
-  // 2. Detecção de peso variável
   bool get _eVariavelPorPeso {
     final prod = _produtoCompleto;
     final String nome = (prod['nome'] ?? '').toString().toLowerCase();
@@ -96,22 +95,26 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
 
   int get _quantidadeNoCarrinho => widget.carrinho[_produtoId] ?? 0;
 
-  void _alterarQuantidade(int novaQuantidade) {
+  void _alterarQuantidade(int novaQuantidade, {String? corte}) {
     setState(() {
       if (novaQuantidade <= 0) {
         widget.carrinho.remove(_produtoId);
+        CorteContextoGlobal.cortesSelecionados.remove(_produtoId);
       } else {
         widget.carrinho[_produtoId] = novaQuantidade;
+        if (_eDoAcougue) {
+          final corteFinal = corte ?? _corteSelecionadoAtual;
+          CorteContextoGlobal.cortesSelecionados[_produtoId] = corteFinal;
+        }
       }
     });
   }
 
-  // 3. Modal de seleção customizada de peso e corte do açougue
   void _abrirModalPeso() {
     final prod = _produtoCompleto;
     int gramasAtuais = _quantidadeNoCarrinho > 0 ? _quantidadeNoCarrinho : 500;
     double kgInicial = gramasAtuais / 1000.0;
-    String corteSelecionado = 'Em bife'; // Padrão
+    String corteModal = _corteSelecionadoAtual;
 
     final TextEditingController pesoController = TextEditingController(
       text: kgInicial.toStringAsFixed(3).replaceAll('.', ','),
@@ -145,7 +148,6 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 🥩 OPÇÕES DE CORTE SE FOR DO AÇOUGUE
                       if (_eDoAcougue) ...[
                         const Text(
                           'Como deseja o corte?',
@@ -153,7 +155,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          value: corteSelecionado,
+                          value: corteModal,
                           decoration: InputDecoration(
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -165,7 +167,10 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                             DropdownMenuItem(value: 'Em cubos / Iscas', child: Text('Em cubos / Iscas')),
                           ],
                           onChanged: (val) {
-                            if (val != null) setStateModal(() => corteSelecionado = val);
+                            if (val != null) {
+                              setStateModal(() => corteModal = val);
+                              setState(() => _corteSelecionadoAtual = val);
+                            }
                           },
                         ),
                         const SizedBox(height: 14),
@@ -221,7 +226,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                     if (pesoKg == null || pesoKg <= 0) return;
 
                     final int gramas = (pesoKg * 1000).round();
-                    _alterarQuantidade(gramas);
+                    _alterarQuantidade(gramas, corte: corteModal);
 
                     Navigator.pop(modalContext);
                   },
@@ -493,6 +498,39 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                     ),
                   ],
 
+                  // 🥩 SELETOR DE CORTE NA TELA PRINCIPAL SE FOR DO AÇOUGUE
+                  if (_eDoAcougue) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Opção de Corte',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _corteSelecionadoAtual,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Em bife', child: Text('Em bife')),
+                        DropdownMenuItem(value: 'Peça inteira', child: Text('Peça inteira')),
+                        DropdownMenuItem(value: 'Moído', child: Text('Moído')),
+                        DropdownMenuItem(value: 'Em cubos / Iscas', child: Text('Em cubos / Iscas')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _corteSelecionadoAtual = val;
+                            if (_quantidadeNoCarrinho > 0) {
+                              CorteContextoGlobal.cortesSelecionados[_produtoId] = val;
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ],
+
                   const SizedBox(height: 20),
                   const Text(
                     'Descrição',
@@ -593,6 +631,11 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                     onPressed: () {
                       if (_quantidadeNoCarrinho == 0) {
                         _alterarQuantidade(pesavel ? 250 : 1);
+                      } else {
+                        // Garante que o corte selecionado atual seja gravado ao tocar em Adicionar/Atualizar
+                        if (_eDoAcougue) {
+                          CorteContextoGlobal.cortesSelecionados[_produtoId] = _corteSelecionadoAtual;
+                        }
                       }
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       ScaffoldMessenger.of(context).showSnackBar(
