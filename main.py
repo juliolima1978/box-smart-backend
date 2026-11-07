@@ -630,6 +630,7 @@ class FooterConfig(BaseModel):
     privacidade_url: Optional[str] = "https://boxsmart.com.br/privacidade"
 
 CONFIG_APP_CACHE = {
+    # 🌟 Substitua o link abaixo pela nova URL da sua logo em alta resolução:
     "logo_url": "https://i.imgur.com/easc80C.png",
     "footer": {
         "texto_copyright": "© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados.",
@@ -643,15 +644,7 @@ CONFIG_APP_CACHE = {
 @app.get("/api/config")
 @app.get("/api/config/")
 def obter_configuracoes_app():
-    return {
-        "logo_url": "https://i.imgur.com/easc80C.png",
-        "footer": {
-            "texto_copyright": "© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados.",
-            "subtitulo": "Seu supermercado online completo e rápido.",
-            "telefone_suporte": "11932020223",
-            "mensagem_suporte": "Olá! Preciso de ajuda com meu pedido."
-        }
-    }
+    return CONFIG_APP_CACHE  # Retorna diretamente o cache atualizado
 
 @app.put("/admin/config")
 def atualizar_configuracoes_app(novas_configs: dict, db: Session = Depends(get_db)):
