@@ -152,7 +152,7 @@ class _SeparacaoChecklistScreenState extends State<SeparacaoChecklistScreen> {
                 ),
                 const SizedBox(height: 6),
 
-                // 3. Entrega & Pagamento
+                // 3. Entrega & Pagamento (Corrigido)
                 Row(
                   children: [
                     Icon(tipoEntrega == 'delivery' ? Icons.delivery_dining : Icons.storefront, size: 16, color: Colors.purple),

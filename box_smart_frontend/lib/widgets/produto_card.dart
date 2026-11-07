@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../main.dart'; // Ajuste conforme a localização de AppColors no seu projeto
+import '../main.dart';
+import '../services/corte_service.dart'; // Ajuste conforme a localização de AppColors no seu projeto
 
 class ProdutoCard extends StatefulWidget {
   final Map<String, dynamic> produto;
@@ -98,7 +99,8 @@ class _ProdutoCardState extends State<ProdutoCard> {
         nomeProd.contains('carne') || nomeProd.contains('frango') ||
         (prod['categoria_nome'] ?? '').toString().toLowerCase().contains('açougue');
 
-    String corteSelecionado = 'Em bife';
+    // Recupera o corte que já estava salvo ou define o padrão
+    String corteSelecionado = CorteContextoGlobal.cortesSelecionados[_produtoId] ?? 'Em bife';
     int gramasAtuais = _quantidadeNoCarrinho > 0 ? _quantidadeNoCarrinho : 500;
     double kgInicial = gramasAtuais / 1000.0;
 
@@ -185,7 +187,11 @@ class _ProdutoCardState extends State<ProdutoCard> {
                     if (pesoKg == null || pesoKg <= 0) return;
                     final int gramas = (pesoKg * 1000).round();
 
-                    // Aqui salvamos a quantidade. Se precisar atrelar o corte, podemos gerenciar no carrinho ou salvar em um mapa auxiliar de cortes na HomeScreen.
+                    // 🥩 SALVA O CORTE SELECIONADO NO MAPA GLOBAL USANDO O ID DO PRODUTO
+                    if (ehAcougue) {
+                      CorteContextoGlobal.cortesSelecionados[_produtoId] = corteSelecionado;
+                    }
+
                     _alterarQuantidade(gramas);
                     Navigator.pop(modalContext);
                   },

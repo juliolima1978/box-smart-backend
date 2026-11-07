@@ -647,7 +647,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                     },
                     icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
                     label: Text(
-                      _quantidadeNoCarrinho > 0 ? 'No Carrinho' : 'Adicionar',
+                      _quantidadeNoCarrinho > 0 ? 'Adicionar' : 'Adicionar',
                       style: const TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),

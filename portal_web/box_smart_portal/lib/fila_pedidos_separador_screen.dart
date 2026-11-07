@@ -733,6 +733,9 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                             // 🌟 CORREÇÃO: Lê a quantidade como double para suportar pesos fracionados (ex: 0.8 kg)
                             final double quantidade = (item['quantidade'] as num?)?.toDouble() ?? 1.0;
 
+                            // 🥩 ADICIONE ESTA LINHA AQUI:
+                            final String? observacaoCorte = item['observacao_corte']?.toString();
+
                             // Formata a quantidade para exibir bonitinho (ex: 0.8 ou 2)
                             final String qtdStr = quantidade % 1 == 0
                                 ? quantidade.toInt().toString()
@@ -794,6 +797,33 @@ class _FilaPedidosSeparadorScreenState extends State<FilaPedidosSeparadorScreen>
                                             'Qtd: $qtdStr | R\$ ${((item['preco_unitario'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
                                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1E3A8A)),
                                           ),
+                                          // 🥩 ADICIONE ESTE BLOCO PARA EXIBIR A ETIQUETA DO CORTE NA TELA DO SEPARADOR:
+                                          if (observacaoCorte != null && observacaoCorte.trim().isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red.shade50,
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: Colors.red.shade200),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.content_cut, size: 12, color: Colors.redAccent),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Corte: $observacaoCorte',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.red.shade900,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
