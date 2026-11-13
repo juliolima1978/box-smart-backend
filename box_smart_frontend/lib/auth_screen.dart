@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart'; // 👈 1. Import necessário para migrar o carrinho
 import 'main.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -99,6 +100,21 @@ class _AuthScreenState extends State<AuthScreen> {
               final String clienteNome = clienteLogado['nome'] ?? 'Cliente';
               final bool ehMembro = clienteLogado['eh_membro_clube'] == true || clienteLogado['eh_membro_clube'] == 1;
 
+              // 🚀 2. MIGRAR O CARRINHO DO VISITANTE (ID 0) PARA O NOVO CLIENTE LOGADO
+              try {
+                final prefs = await SharedPreferences.getInstance();
+                final String? carrinhoVisitanteJson = prefs.getString('carrinho_box_smart_0');
+
+                if (carrinhoVisitanteJson != null && carrinhoVisitanteJson.isNotEmpty && carrinhoVisitanteJson != '{}') {
+                  // Salva os itens na chave específica do novo usuário logado
+                  await prefs.setString('carrinho_box_smart_$clienteId', carrinhoVisitanteJson);
+                  // Remove o carrinho temporário do convidado
+                  await prefs.remove('carrinho_box_smart_0');
+                }
+              } catch (e) {
+                debugPrint("Erro ao migrar carrinho do visitante: $e");
+              }
+
               await SessionService.salvarSessao(
                 token: token,
                 clienteId: clienteId,
@@ -179,7 +195,7 @@ class _AuthScreenState extends State<AuthScreen> {
           'email': email,
           'senha': senha,
           'telefone': telefone,
-          'cpf': cpf, // 👈 Enviando o CPF formatado
+          'cpf': cpf,
         }),
       );
 
@@ -456,7 +472,6 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// 📱 Formatador Nativo para CPF (000.000.000-00)
 class _CpfInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
@@ -476,7 +491,6 @@ class _CpfInputFormatter extends TextInputFormatter {
   }
 }
 
-// 📱 Formatador Nativo para Telefone ((00) 00000-0000)
 class _TelefoneInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {

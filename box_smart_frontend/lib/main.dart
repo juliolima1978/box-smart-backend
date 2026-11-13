@@ -1,4 +1,5 @@
 import 'package:box_smart_frontend/screens/home_screen.dart';
+import 'package:box_smart_frontend/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -27,7 +28,7 @@ void main() async {
   final sessao = await SessionService.carregarSessao();
   final String? tokenSalvo = sessao['token'];
   final int clienteIdSalvo = sessao['clienteId'] ?? 0;
-  final String clienteNomeSalvo = sessao['clienteNome'] ?? 'Cliente';
+  final String clienteNomeSalvo = sessao['clienteNome'] ?? 'Visitante';
 
   final bool temSessaoValida = tokenSalvo != null && tokenSalvo.trim().isNotEmpty;
 
@@ -37,12 +38,12 @@ void main() async {
     PushNotificationService.inicializar(tokenSalvo, baseUrl);
   }
 
-  // Passa as informações de login para dentro do App
+  // 🚀 O app SEMPRE abre na Home (seja logado ou como visitante)
   runApp(BoxSmartApp(
     logado: temSessaoValida,
-    clienteId: clienteIdSalvo,
-    clienteNome: clienteNomeSalvo,
-    token: tokenSalvo ?? '',
+    clienteId: temSessaoValida ? clienteIdSalvo : 0,
+    clienteNome: temSessaoValida ? clienteNomeSalvo : 'Visitante',
+    token: temSessaoValida ? tokenSalvo : '',
   ));
 }
 
@@ -175,7 +176,7 @@ class BoxSmartApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Box Smart - Supermercado',
+      title: 'Supermercado Tescarolllo',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -190,13 +191,11 @@ class BoxSmartApp extends StatelessWidget {
           ),
         ),
       ),
-      home: logado
-          ? HomeScreen(
+      home: HomeScreen(
         clienteId: clienteId,
         clienteNome: clienteNome,
         token: token,
-      )
-          : const AuthScreen(),
+      ),
       debugShowCheckedModeBanner: false,
     );
   }

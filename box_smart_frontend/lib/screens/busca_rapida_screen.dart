@@ -326,8 +326,9 @@ class _BuscaRapidaScreenState extends State<BuscaRapidaScreen> {
                     child: Text(
                       'LISTA RÁPIDA',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.caveatBrush(
-                        fontSize: 40,
+                      style: GoogleFonts.alkatra(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 34,
                         color: AppColors.primaria,
                         letterSpacing: 1.5,
                       ),

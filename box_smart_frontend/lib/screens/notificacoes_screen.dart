@@ -163,7 +163,8 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> with SingleTick
                     child: Text(
                       'NOTIFICAÇÕES E ALERTAS',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.caveatBrush(
+                      style: GoogleFonts.alkatra(
+                        fontWeight: FontWeight.bold,
                         fontSize: 34,
                         color: AppColors.primaria,
                         letterSpacing: 1.5,

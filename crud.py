@@ -4,6 +4,178 @@ from fastapi import HTTPException
 import models
 import schemas
 from typing import List, Optional
+from datetime import datetime
+
+
+# ==========================================
+# OPERAÇÕES DE CUPONS DE DESCONTO
+# ==========================================
+def criar_cupom(db: Session, cupom: schemas.CupomCreate):
+    codigo_limpo = cupom.codigo.strip().upper()
+    existente = db.query(models.Cupom).filter(models.Cupom.codigo == codigo_limpo).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="Já existe um cupom cadastrado com este código.")
+
+    novo_cupom = models.Cupom(
+        codigo=codigo_limpo,
+        tipo_desconto=cupom.tipo_desconto,
+        valor_desconto=cupom.valor_desconto,
+        valor_minimo_pedido=cupom.valor_minimo_pedido,
+        limite_usos=cupom.limite_usos,
+        uso_unico_por_cliente=cupom.uso_unico_por_cliente,
+        validade=cupom.validade,
+        ativo=True
+    )
+    db.add(novo_cupom)
+    db.commit()
+    db.refresh(novo_cupom)
+    return novo_cupom
+
+def listar_cupons(db: Session):
+    return db.query(models.Cupom).order_by(models.Cupom.id.desc()).all()
+
+def validar_cupom_regras(db: Session, codigo: str, subtotal: float, cliente_id: int = 0):
+    codigo_limpo = codigo.strip().upper()
+    cupom = db.query(models.Cupom).filter(models.Cupom.codigo == codigo_limpo).first()
+
+    if not cupom or not cupom.ativo:
+        raise HTTPException(status_code=400, detail="Cupom inválido ou inativo.")
+
+    if cupom.validade and datetime.utcnow() > cupom.validade:
+        raise HTTPException(status_code=400, detail="Este cupom já expirou.")
+
+    if cupom.limite_usos is not None and cupom.usos_atuais >= cupom.limite_usos:
+        raise HTTPException(status_code=400, detail="Limite de usos deste cupom atingido.")
+
+    if subtotal < cupom.valor_minimo_pedido:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Valor mínimo para este cupom é R$ {cupom.valor_minimo_pedido:.2f}."
+        )
+
+    if cupom.uso_unico_por_cliente and cliente_id and cliente_id > 0:
+        ja_usou = db.query(models.CupomUso).filter(
+            models.CupomUso.cupom_id == cupom.id,
+            models.CupomUso.cliente_id == cliente_id
+        ).first()
+        if ja_usou:
+            raise HTTPException(status_code=400, detail="Você já utilizou este cupom em uma compra anterior.")
+
+    if cupom.tipo_desconto == "percentual":
+        desconto = round(subtotal * (cupom.valor_desconto / 100.0), 2)
+    else:
+        desconto = min(cupom.valor_desconto, subtotal)
+
+    return cupom, desconto
+
+# ==========================================
+# ATUALIZAÇÃO EM criar_pedido (COM BAIXA DE CUPOM)
+# ==========================================
+def criar_pedido(db: Session, pedido: schemas.PedidoCreate):
+    cliente = db.query(models.Cliente).filter(models.Cliente.id == pedido.cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+
+    total_itens = 0.0
+    itens_para_salvar = []
+
+    for item in pedido.itens:
+        produto = db.query(models.Produto).filter(models.Produto.id == item.produto_id).first()
+        if not produto:
+            raise HTTPException(status_code=404, detail=f"Produto com ID {item.produto_id} não encontrado.")
+
+        if produto.estoque < item.quantidade:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Estoque insuficiente para '{produto.nome}'. Disponível: {produto.estoque}"
+            )
+
+        produto.estoque -= item.quantidade
+
+        # Usa preço do clube se o cliente for membro e o produto tiver preço promocional
+        preco_aplicado = (
+            float(produto.preco_clube)
+            if (getattr(cliente, "eh_membro_clube", False) and getattr(produto, "preco_clube", None))
+            else float(produto.preco)
+        )
+
+        subtotal_item = preco_aplicado * item.quantidade
+        total_itens += subtotal_item
+
+        itens_para_salvar.append(
+            models.ItemPedido(
+                produto_id=produto.id,
+                quantidade=item.quantidade,
+                preco_unitario=preco_aplicado
+            )
+        )
+
+    # Valida e aplica o cupom de desconto no backend (evita adulteração pelo app)
+    cupom_obj = None
+    desconto_cupom = 0.0
+    codigo_cupom = getattr(pedido, "cupom_codigo", None)
+
+    if codigo_cupom and codigo_cupom.strip():
+        cupom_obj, desconto_cupom = validar_cupom_regras(
+            db=db,
+            codigo=codigo_cupom,
+            subtotal=total_itens,
+            cliente_id=cliente.id
+        )
+
+    taxa_entrega = float(getattr(pedido, "taxa_entrega", 0.0) or 0.0)
+    total_final = max(0.0, round((total_itens - desconto_cupom) + taxa_entrega, 2))
+
+    db_pedido = models.Pedido(
+        cliente_id=pedido.cliente_id,
+        total=total_final,
+        status="aguardando_separacao"
+    )
+    db.add(db_pedido)
+    db.commit()
+    db.refresh(db_pedido)
+
+    for item_db in itens_para_salvar:
+        item_db.pedido_id = db_pedido.id
+        db.add(item_db)
+
+    # Registra a baixa definitiva do cupom vinculado a este pedido e cliente
+    if cupom_obj:
+        cupom_obj.usos_atuais += 1
+        registro_uso = models.CupomUso(
+            cupom_id=cupom_obj.id,
+            cliente_id=cliente.id,
+            pedido_id=db_pedido.id
+        )
+        db.add(registro_uso)
+
+    # Credita pontos no Clube de Fidelidade sobre o valor efetivamente pago
+    fidelidade = db.query(models.Fidelidade).filter(models.Fidelidade.cliente_id == cliente.id).first()
+    if fidelidade:
+        fidelidade.pontos += int(total_final)
+        if fidelidade.pontos >= 500:
+            fidelidade.nivel = "Diamante"
+        elif fidelidade.pontos >= 200:
+            fidelidade.nivel = "Ouro"
+        elif fidelidade.pontos >= 100:
+            fidelidade.nivel = "Prata"
+
+    db.commit()
+    db.refresh(db_pedido)
+    return db_pedido
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # --- Categorias ---

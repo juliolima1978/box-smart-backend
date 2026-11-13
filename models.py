@@ -23,6 +23,30 @@ secao_produto = Table(
 )
 
 
+
+class Cupom(Base):
+    __tablename__ = "cupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    codigo = Column(String, unique=True, index=True, nullable=False)
+    tipo_desconto = Column(String, default="percentual")  # 'percentual' ou 'fixo'
+    valor_desconto = Column(Float, nullable=False)
+    valor_minimo_pedido = Column(Float, default=0.0)
+    limite_usos = Column(Integer, nullable=True)  # None = ilimitado
+    usos_atuais = Column(Integer, default=0)
+    uso_unico_por_cliente = Column(Boolean, default=True)
+    validade = Column(DateTime, nullable=True)
+    ativo = Column(Boolean, default=True)
+
+class CupomUso(Base):
+    __tablename__ = "cupons_usos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    cupom_id = Column(Integer, ForeignKey("cupons.id"), nullable=False)
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    pedido_id = Column(Integer, ForeignKey("pedidos.id"), nullable=True)
+    data_uso = Column(DateTime, default=datetime.utcnow)
+
 class Endereco(Base):
     __tablename__ = "enderecos"
     

@@ -15,6 +15,7 @@ import 'produto_detalhe_screen.dart';
 import 'busca_rapida_screen.dart';
 import 'package:box_smart_frontend/widgets/produto_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/convidado_perfil_modal.dart'; // Exemplo de caminho
 
 class HomeScreen extends StatefulWidget {
   final int clienteId;
@@ -659,15 +660,27 @@ class _HomeScreenState extends State<HomeScreen> {
                             iconSize: 22,
                             tooltip: 'Perfil',
                             onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ProfileScreen(
-                                    clienteId: widget.clienteId,
-                                    token: widget.token,
+                              // 🌟 Verifica se é um convidado (sem token ou ID 0)
+                              if (widget.clienteId == 0 || widget.token.isEmpty) {
+                                // Exibe o modal elegante de boas-vindas que você criou
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => const ConvidadoPerfilModal(),
+                                );
+                              } else {
+                                // Se já estiver logado, abre o perfil normalmente
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProfileScreen(
+                                      clienteId: widget.clienteId,
+                                      token: widget.token,
+                                    ),
                                   ),
-                                ),
-                              );
+                                );
+                              }
                             },
                           ),
                           Stack(
@@ -815,25 +828,36 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             tooltip: 'Meus Favoritos',
                             onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => FavoritesScreen(
-                                    clienteId: widget.clienteId,
-                                    token: widget.token,
-                                    baseUrl: baseUrl,
-                                    carrinho: _carrinho,
-                                    favoritosIds: _favoritosIds,
-                                    produtosListaGlobal: _produtosBackend,
-                                    onAtualizouCarrinho: () {},
+                              // 🌟 Se for convidado, exibe o modal convidando para logar
+                              if (widget.clienteId == 0 || widget.token.isEmpty) {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => const ConvidadoPerfilModal(),
+                                );
+                              } else {
+                                // Se estiver logado, abre a tela de favoritos normalmente
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => FavoritesScreen(
+                                      clienteId: widget.clienteId,
+                                      token: widget.token,
+                                      baseUrl: baseUrl,
+                                      carrinho: _carrinho,
+                                      favoritosIds: _favoritosIds,
+                                      produtosListaGlobal: _produtosBackend,
+                                      onAtualizouCarrinho: () {},
+                                    ),
                                   ),
-                                ),
-                              ).then((_) {
-                                if (mounted) {
-                                  setState(() {});
-                                  _salvarCarrinhoLocal();
-                                }
-                              });
+                                ).then((_) {
+                                  if (mounted) {
+                                    setState(() {});
+                                    _salvarCarrinhoLocal();
+                                  }
+                                });
+                              }
                             },
                           ),
                           IconButton(
@@ -844,7 +868,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   color: AppColors.primaria,
                                   height: 22,
                                 ),
-                                if (_totalNotificacoesNaoLidas > 0)
+                                if (_totalNotificacoesNaoLidas > 0 && widget.clienteId != 0)
                                   Positioned(
                                     right: 1,
                                     top: 0,
@@ -872,19 +896,30 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                             onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => NotificacoesScreen(
-                                    clienteId: widget.clienteId,
-                                    token: widget.token,
-                                    baseUrl: baseUrl,
+                              // 🌟 Se for convidado, exibe o modal
+                              if (widget.clienteId == 0 || widget.token.isEmpty) {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => const ConvidadoPerfilModal(),
+                                );
+                              } else {
+                                // Se estiver logado, abre as notificações
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => NotificacoesScreen(
+                                      clienteId: widget.clienteId,
+                                      token: widget.token,
+                                      baseUrl: baseUrl,
+                                    ),
                                   ),
-                                ),
-                              ).then((_) {
-                                _verificarNotificacoesNaoLidas();
-                                if (mounted) setState(() {});
-                              });
+                                ).then((_) {
+                                  _verificarNotificacoesNaoLidas();
+                                  if (mounted) setState(() {});
+                                });
+                              }
                             },
                           ),
                         ],
@@ -1824,143 +1859,159 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFooter(BuildContext context) {
-    final String copyrightText = _footerData['texto_copyright'] ??
-        '© 2026 Supermercado Tescarollo. Todos os direitos reservados.';
-
-    final List institucionalItens = _footerData['coluna_institucional'] ?? [
-      {'titulo': 'Sobre Nós', 'conteudo': 'O Tescarollo revoluciona suas compras.'},
-      {'titulo': 'Fale Conosco', 'conteudo': 'Atendimento via comercial@tescarollo.com.br'}
-    ];
-    final List plataformaItens = _footerData['coluna_plataforma'] ?? [
-      {'titulo': 'Funcionalidades', 'conteudo': 'Aplicativo inteligente de supermercado.'}
-    ];
-    final List suporteItens = _footerData['coluna_suporte'] ?? [
-      {'titulo': 'Central de Ajuda', 'conteudo': 'Estamos prontos para ajudar.'}
-    ];
-    final Map redesSociais = _footerData['redes_sociais'] ?? {};
-
     return Container(
       color: AppColors.primaria,
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 50),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // --- LOGO E SLOGAN ---
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.store_mall_directory_rounded, color: Colors.white, size: 32),
+              const SizedBox(width: 8),
+              Text(
+                widget.clienteNome.isNotEmpty ? 'Supermercado Tescarollo' : 'Supermercado Tescarollo',
+                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Descubra o frescor de cada dia',
+            style: TextStyle(color: Colors.white70, fontSize: 13, fontStyle: FontStyle.italic),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+
+          // --- REDES SOCIAIS ---
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildSocialIcon(Icons.camera_alt, () => _lancarUrlExterna('https://instagram.com')),
+              const SizedBox(width: 12),
+              _buildSocialIcon(Icons.play_arrow_rounded, () => _lancarUrlExterna('https://youtube.com')),
+              const SizedBox(width: 12),
+              _buildSocialIcon(Icons.facebook, () => _lancarUrlExterna('https://facebook.com')),
+              const SizedBox(width: 12),
+              _buildSocialIcon(Icons.chat, () => _lancarUrlExterna('https://wa.me/5511932020223')),
+            ],
+          ),
+          const SizedBox(height: 32),
+
+          // --- SEÇÃO: BAIXE NOSSO APLICATIVO ---
+          const Text(
+            'Baixe nosso aplicativo',
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Escolha a loja de aplicativos do seu dispositivo abaixo',
+            style: TextStyle(color: Colors.white60, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
-              bool isDesktop = constraints.maxWidth > 900;
-              if (isDesktop) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildColunaLogo(redesSociais),
-                    _buildColunaLinksDinamica('Institucional', institucionalItens),
-                    _buildColunaLinksDinamica('Plataforma', plataformaItens),
-                    _buildColunaLinksDinamica('Suporte', suporteItens),
-                    _buildColunaNewsletter(),
-                  ],
-                );
-              } else {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildColunaLogo(redesSociais),
-                    const SizedBox(height: 30),
-                    _buildColunaLinksDinamica('Institucional', institucionalItens),
-                    const SizedBox(height: 25),
-                    _buildColunaLinksDinamica('Plataforma', plataformaItens),
-                    const SizedBox(height: 25),
-                    _buildColunaLinksDinamica('Suporte', suporteItens),
-                    const SizedBox(height: 30),
-                    _buildColunaNewsletter(),
-                  ],
-                );
-              }
+              bool isDesktop = constraints.maxWidth > 600;
+              Widget botoesLojas = Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildStoreButton('DISPONÍVEL NA', 'Google Play', Icons.play_arrow_rounded, () {}),
+                  const SizedBox(width: 12),
+                  _buildStoreButton('DISPONÍVEL NA', 'App Store', Icons.apple, () {}),
+                ],
+              );
+              return isDesktop ? SizedBox(width: 450, child: botoesLojas) : botoesLojas;
             },
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 32),
           const Divider(color: Colors.white24, thickness: 1),
           const SizedBox(height: 20),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              bool isDesktop = constraints.maxWidth > 700;
-              if (isDesktop) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        copyrightText,
-                        style: const TextStyle(color: Colors.white60, fontSize: 12),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        const Text(
-                          'Métodos de pagamento (Visa, MasterCard, Elo, Pix)',
-                          style: TextStyle(color: Colors.white60, fontSize: 11),
-                        ),
-                        const SizedBox(width: 15),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'Feito com ❤️ no Brasil',
-                            style: TextStyle(
-                              color: Colors.black87,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              } else {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      copyrightText,
-                      style: const TextStyle(color: Colors.white60, fontSize: 12),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Métodos de pagamento: Visa, MasterCard, Elo, Pix',
-                      style: TextStyle(color: Colors.white60, fontSize: 11),
-                    ),
-                    const SizedBox(height: 15),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'Feito com ❤️ no Brasil',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }
-            },
+
+          // --- LINKS DE ATENDIMENTO ---
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 20,
+            runSpacing: 10,
+            children: [
+              _buildLinkAtendimento('Contato', () => _lancarUrlExterna('https://wa.me/5511932020223')),
+              _buildLinkAtendimento('Atendimento ao titular LGPD', () => _abrirPaginaInstitucionalDinamica(context, 'LGPD', 'Seus dados protegidos com total transparência.')),
+              _buildLinkAtendimento('Perguntas Frequentes', () => _abrirPaginaInstitucionalDinamica(context, 'FAQ', 'Tire suas dúvidas sobre entregas, pagamentos e o clube de vantagens.')),
+              _buildLinkAtendimento('Política de Privacidade', () => _abrirPaginaInstitucionalDinamica(context, 'Privacidadee', 'Compromisso com a segurança da sua privacidade.')),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // --- COPYRIGHT E PAGAMENTOS ---
+          const Text(
+            '© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados.',
+            style: TextStyle(color: Colors.white60, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Formas de pagamento: Visa, MasterCard, Elo, Pix',
+            style: TextStyle(color: Colors.white54, fontSize: 10),
+            textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSocialIcon(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildStoreButton(String subtitle, String title, IconData icon, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white30),
+            color: Colors.white.withOpacity(0.05),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 26, color: Colors.white),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(subtitle, style: const TextStyle(fontSize: 8, color: Colors.white60, fontWeight: FontWeight.bold)),
+                  Text(title, style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLinkAtendimento(String texto, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Text(
+        texto,
+        style: const TextStyle(color: Colors.white70, fontSize: 12, decoration: TextDecoration.underline, decorationColor: Colors.white30),
       ),
     );
   }
@@ -2018,21 +2069,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSocialIcon(IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(icon, color: Colors.white, size: 16),
-      ),
     );
   }
 

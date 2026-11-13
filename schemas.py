@@ -5,6 +5,32 @@ from pydantic import Field
 from datetime import date
 
 
+# ==========================================
+# 📂 CUPONS
+# ==========================================
+
+# --- Cupons de Desconto ---
+class CupomCreate(BaseModel):
+    codigo: str
+    tipo_desconto: str = "percentual"  # "percentual" ou "fixo"
+    valor_desconto: float
+    valor_minimo_pedido: float = 0.0
+    limite_usos: Optional[int] = None
+    uso_unico_por_cliente: bool = True
+    validade: Optional[datetime] = None
+
+class CupomResponse(CupomCreate):
+    id: int
+    usos_atuais: int
+    ativo: bool
+
+    class Config:
+        from_attributes = True
+
+class ValidarCupomRequest(BaseModel):
+    codigo: str
+    subtotal: float
+    cliente_id: Optional[int] = 0
 
 # ==========================================
 # 📂 ENDEREÇOS
@@ -244,8 +270,7 @@ class TokenResponse(BaseModel):
     perfil: Optional[str] = "cliente"
     nome: Optional[str] = None
     is_admin: Optional[bool] = False
-
-
+    
 # ==========================================
 # 📂 PEDIDOS E CARRINHO
 # ==========================================

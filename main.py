@@ -84,6 +84,32 @@ except Exception as e:
     print(f"⚠️ Erro ao inicializar o Firebase: {e}")
     
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    
+    
 # ==========================================
 # 🔄 FUNÇÃO PARA ATUALIZAR PREÇOS DE PROMOÇÃO
 # ==========================================
@@ -630,21 +656,35 @@ class FooterConfig(BaseModel):
     privacidade_url: Optional[str] = "https://boxsmart.com.br/privacidade"
 
 CONFIG_APP_CACHE = {
-    # 🌟 Substitua o link abaixo pela nova URL da sua logo em alta resolução:
-    "logo_url": "https://i.imgur.com/easc80C.png",
+    "logo_url": "https://i.imgur.com/6tJyuYb.png",
     "footer": {
+        "slogan": "Descubra o frescor de cada dia",
         "texto_copyright": "© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados.",
         "telefone_suporte": "11932020223",
-        "mensagem_suporte": "Olá! Preciso de ajuda com meu pedido no Box Smart.",
-        "termos_url": "https://boxsmart.com.br/termos",
-        "privacidade_url": "https://boxsmart.com.br/privacidade"
+        "mensagem_suporte": "Olá! Preciso de ajuda com meu pedido no Supermercado Tescarollo.",
+        "redes_sociais": {
+            "instagram": "https://instagram.com/suamarca",
+            "youtube": "https://youtube.com/@suamarca",
+            "linkedin": "https://linkedin.com/company/suamarca",
+            "facebook": "https://facebook.com/suamarca"
+        },
+        "links_downloads": {
+            "google_play": "https://play.google.com/store/apps/details?id=br.com.boxsmart",
+            "app_store": "https://apps.apple.com/app/box-smart/id000000000"
+        },
+        "atendimento": [
+            {"titulo": "Contato", "url": "https://wa.me/5511932020223"},
+            {"titulo": "Atendimento ao titular LGPD", "url": "https://boxsmart.com.br/lgpd"},
+            {"titulo": "Perguntas Frequentes", "url": "https://boxsmart.com.br/faq"}
+        ]
     }
 }
 
 @app.get("/api/config")
 @app.get("/api/config/")
 def obter_configuracoes_app():
-    return CONFIG_APP_CACHE  # Retorna diretamente o cache atualizado
+    return CONFIG_APP_CACHE
+
 
 @app.put("/admin/config")
 def atualizar_configuracoes_app(novas_configs: dict, db: Session = Depends(get_db)):
@@ -657,29 +697,90 @@ def atualizar_configuracoes_app(novas_configs: dict, db: Session = Depends(get_d
 
 
 # ==========================================
-# 🔄 CUPONS DE DESCONTOS
+# 🔄 FUNÇÃO PARA USO DE CUPONS
 # ==========================================
 
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
+class ValidarCupomRequest(BaseModel):
+    codigo: str
+    subtotal: float
+    cliente_id: Optional[int] = 0
+
+class CupomCreate(BaseModel):
+    codigo: str
+    tipo_desconto: str = "percentual"  # "percentual" ou "fixo"
+    valor_desconto: float
+    valor_minimo_pedido: float = 0.0
+    limite_usos: Optional[int] = None
+    uso_unico_por_cliente: bool = True
+    validade: Optional[datetime] = None
+
 @app.post("/api/cupons/validar")
-def validar_cupom(dados: dict, db: Session = Depends(get_db)):
-    codigo = dados.get("codigo", "").strip().upper()
-    subtotal = float(dados.get("subtotal", 0.0))
-    
-    # Regras de cupons oficiais do Box Smart para testes reais
-    if codigo == "BOX10":
-        desconto = subtotal * 0.10
-        return {"valor_desconto": desconto, "codigo": "BOX10", "mensagem": "Cupom BOX10 aplicado (10% de desconto)!"}
-    elif codigo == "BOX20":
-        desconto = subtotal * 0.20
-        return {"valor_desconto": desconto, "codigo": "BOX20", "mensagem": "Cupom BOX20 aplicado (20% de desconto)!"}
-    elif codigo == "PRIME5":
-        desconto = 5.00 if subtotal >= 50.0 else subtotal * 0.05
-        return {"valor_desconto": desconto, "codigo": "PRIME5", "mensagem": "Desconto de R$ 5,00 aplicado!"}
-    else:
+def validar_cupom(dados: ValidarCupomRequest, db: Session = Depends(get_db)):
+    codigo_limpo = dados.codigo.strip().upper()
+    cupom = db.query(models.Cupom).filter(models.Cupom.codigo == codigo_limpo).first()
+
+    if not cupom or not cupom.ativo:
+        raise HTTPException(status_code=400, detail="Cupom inválido ou inativo.")
+
+    if cupom.validade and datetime.utcnow() > cupom.validade:
+        raise HTTPException(status_code=400, detail="Este cupom já expirou.")
+
+    if cupom.limite_usos is not None and cupom.usos_atuais >= cupom.limite_usos:
+        raise HTTPException(status_code=400, detail="Limite de usos deste cupom atingido.")
+
+    if dados.subtotal < cupom.valor_minimo_pedido:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cupom inválido, expirado ou valor mínimo não atingido."
+            status_code=400,
+            detail=f"Valor mínimo para este cupom é R$ {cupom.valor_minimo_pedido:.2f}."
         )
+
+    if cupom.uso_unico_por_cliente and dados.cliente_id and dados.cliente_id > 0:
+        ja_usou = db.query(models.CupomUso).filter(
+            models.CupomUso.cupom_id == cupom.id,
+            models.CupomUso.cliente_id == dados.cliente_id
+        ).first()
+        if ja_usou:
+            raise HTTPException(status_code=400, detail="Você já utilizou este cupom em uma compra anterior.")
+
+    # Calcula o desconto real
+    if cupom.tipo_desconto == "percentual":
+        desconto = round(dados.subtotal * (cupom.valor_desconto / 100.0), 2)
+    else:
+        desconto = min(cupom.valor_desconto, dados.subtotal)
+
+    return {
+        "valido": True,
+        "codigo": cupom.codigo,
+        "valor_desconto": desconto,
+        "mensagem": f"Cupom {cupom.codigo} aplicado! Desconto de R$ {desconto:.2f}."
+    }
+
+# Rota para o Painel Administrativo criar cupons reais
+@app.post("/admin/cupons/", status_code=201)
+def criar_cupom(cupom: CupomCreate, db: Session = Depends(get_db)):
+    codigo_limpo = cupom.codigo.strip().upper()
+    existente = db.query(models.Cupom).filter(models.Cupom.codigo == codigo_limpo).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="Já existe um cupom com este código.")
+
+    novo = models.Cupom(
+        codigo=codigo_limpo,
+        tipo_desconto=cupom.tipo_desconto,
+        valor_desconto=cupom.valor_desconto,
+        valor_minimo_pedido=cupom.valor_minimo_pedido,
+        limite_usos=cupom.limite_usos,
+        uso_unico_por_cliente=cupom.uso_unico_por_cliente,
+        validade=cupom.validade,
+        ativo=True
+    )
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+    return novo
 
 
 # ==========================================

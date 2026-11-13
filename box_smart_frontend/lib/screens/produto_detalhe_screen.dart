@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../main.dart';
 import '../widgets/produto_card.dart';
-import '../services/corte_service.dart'; // 👈 Importando o arquivo que você criou
 
 class ProdutoDetalheScreen extends StatefulWidget {
   final int clienteId;
@@ -27,9 +26,7 @@ class ProdutoDetalheScreen extends StatefulWidget {
 }
 
 class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
-  // Variável local para armazenar o corte selecionado temporariamente nesta tela
-  String _corteSelecionadoAtual = 'Em bife';
-
+  // 1. O produto recebido via navegação (widget.produto) tem prioridade sobre a lista global
   Map<String, dynamic> get _produtoCompleto {
     final Map<String, dynamic> prodMap = {};
 
@@ -50,6 +47,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
       }
     }
 
+    // Sobrescreve com os dados do produto recebido diretamente na navegação (dados mais recentes)
     prodMap.addAll(Map<String, dynamic>.from(widget.produto));
     return prodMap;
   }
@@ -60,17 +58,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
     return int.tryParse(rawId.toString()) ?? (rawId is int ? rawId : widget.produto.hashCode);
   }
 
-  bool get _eDoAcougue {
-    final prod = _produtoCompleto;
-    final String nome = (prod['nome'] ?? '').toString().toLowerCase();
-    final String categoria = (prod['categoria_nome'] ?? prod['categoria'] ?? '').toString().toLowerCase();
-
-    return categoria.contains('açougue') || categoria.contains('carne') ||
-        nome.contains('patinho') || nome.contains('alcatra') || nome.contains('contra') ||
-        nome.contains('moída') || nome.contains('frango') ||
-        nome.contains('costela') || nome.contains('acém');
-  }
-
+  // 2. Detecção de peso variável
   bool get _eVariavelPorPeso {
     final prod = _produtoCompleto;
     final String nome = (prod['nome'] ?? '').toString().toLowerCase();
@@ -95,26 +83,21 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
 
   int get _quantidadeNoCarrinho => widget.carrinho[_produtoId] ?? 0;
 
-  void _alterarQuantidade(int novaQuantidade, {String? corte}) {
+  void _alterarQuantidade(int novaQuantidade) {
     setState(() {
       if (novaQuantidade <= 0) {
         widget.carrinho.remove(_produtoId);
-        CorteContextoGlobal.cortesSelecionados.remove(_produtoId);
       } else {
         widget.carrinho[_produtoId] = novaQuantidade;
-        if (_eDoAcougue) {
-          final corteFinal = corte ?? _corteSelecionadoAtual;
-          CorteContextoGlobal.cortesSelecionados[_produtoId] = corteFinal;
-        }
       }
     });
   }
 
+  // 3. Modal de seleção customizada de peso
   void _abrirModalPeso() {
     final prod = _produtoCompleto;
-    int gramasAtuais = _quantidadeNoCarrinho > 0 ? _quantidadeNoCarrinho : 500;
+    int gramasAtuais = _quantidadeNoCarrinho > 0 ? _quantidadeNoCarrinho : 250;
     double kgInicial = gramasAtuais / 1000.0;
-    String corteModal = _corteSelecionadoAtual;
 
     final TextEditingController pesoController = TextEditingController(
       text: kgInicial.toStringAsFixed(3).replaceAll('.', ','),
@@ -123,118 +106,85 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
     showDialog(
       context: context,
       builder: (modalContext) {
-        return StatefulBuilder(
-          builder: (context, setStateModal) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Row(
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.scale_rounded, color: AppColors.primaria),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Selecionar Peso: ${prod['nome'] ?? ''}',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 300,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.scale_rounded, color: AppColors.primaria),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Selecionar Peso: ${prod['nome'] ?? ''}',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  const Text(
+                    'Informe a quantidade em Quilogramas (kg):',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: pesoController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Peso (ex: 0,500 para 500g)',
+                      border: OutlineInputBorder(),
+                      suffixText: 'kg',
                     ),
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Sugestões rápidas:',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _botaoSugestao('250g', 0.25, pesoController),
+                      _botaoSugestao('500g', 0.50, pesoController),
+                      _botaoSugestao('1 kg', 1.00, pesoController),
+                      _botaoSugestao('1,5 kg', 1.50, pesoController),
+                    ],
                   ),
                 ],
               ),
-              content: SingleChildScrollView(
-                child: SizedBox(
-                  width: 300,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_eDoAcougue) ...[
-                        const Text(
-                          'Como deseja o corte?',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
-                        ),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
-                          value: corteModal,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: 'Em bife', child: Text('Em bife')),
-                            DropdownMenuItem(value: 'Peça inteira', child: Text('Peça inteira')),
-                            DropdownMenuItem(value: 'Moído', child: Text('Moído')),
-                            DropdownMenuItem(value: 'Em cubos / Iscas', child: Text('Em cubos / Iscas')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setStateModal(() => corteModal = val);
-                              setState(() => _corteSelecionadoAtual = val);
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-
-                      const Text(
-                        'Informe a quantidade em Quilogramas (kg):',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: pesoController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(
-                          labelText: 'Peso (ex: 0,500 para 500g)',
-                          border: OutlineInputBorder(),
-                          suffixText: 'kg',
-                        ),
-                        autofocus: true,
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'Sugestões rápidas:',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          _botaoSugestao('250g', 0.25, pesoController),
-                          _botaoSugestao('500g', 0.50, pesoController),
-                          _botaoSugestao('1 kg', 1.00, pesoController),
-                          _botaoSugestao('1,5 kg', 1.50, pesoController),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(modalContext),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaria,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(modalContext),
-                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaria,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () {
-                    final double? pesoKg = double.tryParse(pesoController.text.replaceAll(',', '.'));
-                    if (pesoKg == null || pesoKg <= 0) return;
+              onPressed: () {
+                final double? pesoKg = double.tryParse(pesoController.text.replaceAll(',', '.'));
+                if (pesoKg == null || pesoKg <= 0) return;
 
-                    final int gramas = (pesoKg * 1000).round();
-                    _alterarQuantidade(gramas, corte: corteModal);
-
-                    Navigator.pop(modalContext);
-                  },
-                  child: const Text('Confirmar Peso', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            );
-          },
+                final int gramas = (pesoKg * 1000).round();
+                _alterarQuantidade(gramas);
+                Navigator.pop(modalContext);
+              },
+              child: const Text('Confirmar Peso', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
         );
       },
     );
@@ -245,8 +195,9 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
       if (p is! Map) return false;
 
       final idStr = p['id']?.toString() ?? p['codigo']?.toString();
-      if (idStr == _produtoId.toString()) return false;
+      if (idStr == _produtoId.toString()) return false; // Não mostra o próprio produto
 
+      // --- FILTRO DE IMAGEM E ESTOQUE APLICADO NAS RECOMENDAÇÕES ---
       final String imgUrl = p['imagem_url']?.toString().toLowerCase() ?? '';
       if (imgUrl.contains('seu-storage.com.br') || imgUrl.contains('seustorage')) {
         return false;
@@ -356,6 +307,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
     final prod = _produtoCompleto;
     final bool pesavel = _eVariavelPorPeso;
 
+    // 🎯 Captura inteligente de Preço Normal vs Preço Clube
     final double precoNormal = double.tryParse(prod['preco'].toString().replaceAll(',', '.')) ?? 0.0;
     final dynamic precoClubeRaw = prod['preco_clube'];
     final bool temPrecoClube = precoClubeRaw != null;
@@ -405,6 +357,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // IMAGEM DO PRODUTO
             Container(
               height: 250,
               width: double.infinity,
@@ -427,6 +380,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                   ),
                   const SizedBox(height: 8),
 
+                  // 🌟 EXIBIÇÃO INTELIGENTE DE PREÇO (NORMAL VS CLUBE) NOS DETALHES
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -498,39 +452,6 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                     ),
                   ],
 
-                  // 🥩 SELETOR DE CORTE NA TELA PRINCIPAL SE FOR DO AÇOUGUE
-                  if (_eDoAcougue) ...[
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Opção de Corte',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _corteSelecionadoAtual,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'Em bife', child: Text('Em bife')),
-                        DropdownMenuItem(value: 'Peça inteira', child: Text('Peça inteira')),
-                        DropdownMenuItem(value: 'Moído', child: Text('Moído')),
-                        DropdownMenuItem(value: 'Em cubos / Iscas', child: Text('Em cubos / Iscas')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _corteSelecionadoAtual = val;
-                            if (_quantidadeNoCarrinho > 0) {
-                              CorteContextoGlobal.cortesSelecionados[_produtoId] = val;
-                            }
-                          });
-                        }
-                      },
-                    ),
-                  ],
-
                   const SizedBox(height: 20),
                   const Text(
                     'Descrição',
@@ -547,11 +468,13 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
 
             const Divider(height: 24),
 
+            // SEÇÃO "QUEM VIU ESTE ITEM, TAMBÉM VIU"
             _buildQuemViuTambemViu(),
           ],
         ),
       ),
 
+      // BARRA INFERIOR DE COMPRA E AJUSTE DE QUANTIDADE / PESO
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -563,6 +486,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
         child: SafeArea(
           child: Row(
             children: [
+              // CONTROLE DE QUANTIDADE / PESO
               Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -619,6 +543,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
               ),
               const SizedBox(width: 12),
 
+              // BOTÃO DE ADICIONAR / CONFIRMAR NO CARRINHO
               Expanded(
                 child: SizedBox(
                   height: 48,
@@ -631,11 +556,6 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                     onPressed: () {
                       if (_quantidadeNoCarrinho == 0) {
                         _alterarQuantidade(pesavel ? 250 : 1);
-                      } else {
-                        // Garante que o corte selecionado atual seja gravado ao tocar em Adicionar/Atualizar
-                        if (_eDoAcougue) {
-                          CorteContextoGlobal.cortesSelecionados[_produtoId] = _corteSelecionadoAtual;
-                        }
                       }
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -647,7 +567,7 @@ class _ProdutoDetalheScreenState extends State<ProdutoDetalheScreen> {
                     },
                     icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
                     label: Text(
-                      _quantidadeNoCarrinho > 0 ? 'Adicionar' : 'Adicionar',
+                      _quantidadeNoCarrinho > 0 ? 'No Carrinho' : 'Adicionar',
                       style: const TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),

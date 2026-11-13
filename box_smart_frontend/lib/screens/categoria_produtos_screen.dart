@@ -588,8 +588,9 @@ class _CategoriaProdutosScreenState extends State<CategoriaProdutosScreen> {
                     child: Text(
                       widget.categoriaNome.toUpperCase(),
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.caveatBrush(
-                        fontSize: 44,
+                      style: GoogleFonts.alkatra(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 34,
                         color: _corPorCategoria(widget.categoriaNome),
                         letterSpacing: 1.5,
                       ),

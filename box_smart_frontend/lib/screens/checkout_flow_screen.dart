@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
-import '../services/corte_service.dart';
 import '../services/session_service.dart';
 import 'endereco_screen.dart';
+import 'home_screen.dart';
+//import 'profile_screen.dart'; // Ajuste o caminho se a ProfileScreen estiver em outra pasta
 
 class CheckoutFlowScreen extends StatefulWidget {
   final int clienteId;
@@ -42,24 +44,24 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
   String _clienteCpf = '';
   bool _carregandoDadosCliente = true;
 
-  // 🎛️ Preferências
+  // Preferências
   String? _opcaoSubstituicao;
   String? _desejaCpfNota;
 
-  // 🎟️ Cupom de Desconto
+  // Cupom de Desconto
   final TextEditingController _cupomController = TextEditingController();
   double _valorDescontoCupom = 0.0;
   String? _codigoCupomAplicado;
   bool _carregandoCupom = false;
 
-  // 🚚 Entrega e Frete
+  // Entrega e Frete
   String _tipoEntrega = 'retirada'; // 'retirada' ou 'delivery'
   int? _enderecoSelecionadoId;
   String _enderecoEntrega = 'Endereço não selecionado';
   double _valorFreteCalculado = 8.00;
   bool _carregandoFrete = false;
 
-  // 💰 Pagamento e Troco
+  // Pagamento e Troco
   String _formaPagamento = 'pix';
   bool _precisaTroco = false;
   final TextEditingController _trocoController = TextEditingController();
@@ -117,7 +119,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       if (response.statusCode == 200 && mounted) {
         List clientes = jsonDecode(response.body);
         var clienteLogado = clientes.firstWhere(
-          (c) => c['id'].toString() == _clienteIdEfetivo.toString(),
+              (c) => c['id'].toString() == _clienteIdEfetivo.toString(),
           orElse: () => null,
         );
 
@@ -205,16 +207,12 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         return;
       }
 
-      // 👇 ALTERAÇÃO: Removi a obrigatoriedade estrita de escolher "Deseja CPF".
-      // Se ele não escolher, o app assume 'nao' automaticamente e deixa passar.
       if (_desejaCpfNota == null) {
         setState(() {
           _desejaCpfNota = 'nao';
         });
       }
 
-      // 👇 ALTERAÇÃO: Apenas avisa o cliente que ele não tem CPF, mas NÃO barra a compra mais.
-      // E automaticamente muda a escolha para 'nao' para evitar erros na API de Nota Fiscal.
       if (_desejaCpfNota == 'sim' && (_clienteCpf.trim().isEmpty)) {
         setState(() {
           _desejaCpfNota = 'nao';
@@ -317,7 +315,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     }
   }
 
-  // Cálculos financeiros consolidados
   double get _subtotalSemDesconto {
     double subtotal = 0.0;
     widget.carrinho.forEach((prodId, qtdOrGramas) {
@@ -327,7 +324,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
             double.tryParse(
               prod['preco']?.toString().replaceAll(',', '.') ?? '',
             ) ??
-            0.0;
+                0.0;
         final bool pesavel = _eVariavelPorPeso(prod);
         double fator = pesavel
             ? (qtdOrGramas / 1000.0)
@@ -347,11 +344,11 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
             double.tryParse(
               prod['preco']?.toString().replaceAll(',', '.') ?? '',
             ) ??
-            0.0;
+                0.0;
         final dynamic precoClubeRaw = prod['preco_clube'];
         final double precoClube = precoClubeRaw != null
             ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ??
-                  0.0)
+            0.0)
             : 0.0;
 
         if (precoClube > 0 && precoClube < precoNormal) {
@@ -380,15 +377,15 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
   Map<String, dynamic>? _encontrarProdutoGlobal(int id) {
     try {
       return widget.produtosListaGlobal.firstWhere((p) {
-            if (p is! Map) return false;
-            final pid =
-                int.tryParse(
-                  p['id']?.toString() ?? p['codigo']?.toString() ?? '',
-                ) ??
+        if (p is! Map) return false;
+        final pid =
+            int.tryParse(
+              p['id']?.toString() ?? p['codigo']?.toString() ?? '',
+            ) ??
                 -1;
-            return pid == id;
-          })
-          as Map<String, dynamic>?;
+        return pid == id;
+      })
+      as Map<String, dynamic>?;
     } catch (_) {
       return null;
     }
@@ -402,16 +399,18 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         .toLowerCase();
     final dynamic varPeso =
         prod['variavel_por_peso'] ??
-        prod['peso_variavel'] ??
-        prod['fracionado'] ??
-        prod['pesavel'];
+            prod['peso_variavel'] ??
+            prod['fracionado'] ??
+            prod['pesavel'];
     if (varPeso == true ||
         varPeso == 1 ||
-        varPeso.toString().toLowerCase() == 'true')
+        varPeso.toString().toLowerCase() == 'true') {
       return true;
+    }
     if (['kg', 'quilo', 'quilos', 'g', 'gramas'].contains(un) ||
-        un.startsWith('kg'))
+        un.startsWith('kg')) {
       return true;
+    }
     return nome.contains('patinho') ||
         nome.contains('alcatra') ||
         nome.contains('carne') ||
@@ -419,7 +418,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         nome.contains('queijo');
   }
 
-  // ⚖️ Verifica se há pelo menos um item vendido por peso no resumo do checkout
   bool get _temItemVariavelPorPeso {
     for (var prodId in widget.carrinho.keys) {
       final prod = _encontrarProdutoGlobal(prodId);
@@ -456,7 +454,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 children: List.generate(_titulosEtapas.length, (index) {
                   bool selecionado = _etapaAtual == index;
                   bool concluido = _etapaAtual > index;
-        
+
                   return Row(
                     children: [
                       Column(
@@ -473,18 +471,18 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                             child: Center(
                               child: concluido
                                   ? const Icon(
-                                      Icons.check,
-                                      color: Colors.white,
-                                      size: 16,
-                                    )
+                                Icons.check,
+                                color: Colors.white,
+                                size: 16,
+                              )
                                   : Text(
-                                      '${index + 1}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -520,7 +518,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
               ),
             ),
             const Divider(height: 1),
-        
             Expanded(
               child: IndexedStack(
                 index: _etapaAtual,
@@ -662,13 +659,13 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                         double.tryParse(
                           prod['preco']?.toString().replaceAll(',', '.') ?? '',
                         ) ??
-                        0.0;
+                            0.0;
                     final dynamic precoClubeRaw = prod['preco_clube'];
                     final double precoClube = precoClubeRaw != null
                         ? (double.tryParse(
-                                precoClubeRaw.toString().replaceAll(',', '.'),
-                              ) ??
-                              0.0)
+                      precoClubeRaw.toString().replaceAll(',', '.'),
+                    ) ??
+                        0.0)
                         : 0.0;
                     final double precoEfetivo = (precoClube > 0)
                         ? precoClube
@@ -688,9 +685,9 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                           child: imgUrl != null && imgUrl.startsWith('http')
                               ? Image.network(imgUrl, fit: BoxFit.contain)
                               : const Icon(
-                                  Icons.shopping_bag,
-                                  color: Colors.grey,
-                                ),
+                            Icons.shopping_bag,
+                            color: Colors.grey,
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -802,7 +799,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                 const SizedBox(width: 8),
                                 InkWell(
                                   onTap: () => setState(
-                                    () => widget.carrinho.remove(prodId),
+                                        () => widget.carrinho.remove(prodId),
                                   ),
                                   child: const Icon(
                                     Icons.delete_outline_rounded,
@@ -915,20 +912,20 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                       onPressed: _carregandoCupom ? null : _aplicarCupom,
                       child: _carregandoCupom
                           ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                           : const Text(
-                              'Aplicar',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
+                        'Aplicar',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -1258,15 +1255,15 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                             _enderecoSelecionadoId = enderecoSelecionado['id'];
                             final String rua =
                                 enderecoSelecionado['rua'] ??
-                                enderecoSelecionado['logradouro'] ??
-                                '';
+                                    enderecoSelecionado['logradouro'] ??
+                                    '';
                             final String numero =
                                 enderecoSelecionado['numero']?.toString() ?? '';
                             final String bairro =
                                 enderecoSelecionado['bairro'] ?? '';
                             if (rua.isNotEmpty) {
                               _enderecoEntrega =
-                                  '$rua, $numero${bairro.isNotEmpty ? " - $bairro" : ""}';
+                              '$rua, $numero${bairro.isNotEmpty ? " - $bairro" : ""}';
                             } else {
                               _enderecoEntrega = 'Endereço selecionado';
                             }
@@ -1449,7 +1446,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     );
   }
 
-  // 💳 ETAPA 4: Pagamento com Resumo Detalhado (Clube, Cupons, Frete e Total)
   Widget _buildEtapaPagamento() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1470,8 +1466,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
                 const Divider(height: 20),
-
-                // Subtotal
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -1488,8 +1482,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                     ),
                   ],
                 ),
-
-                // Desconto do Clube Box Prime (se houver)
                 if (_totalEconomiaClube > 0) ...[
                   const SizedBox(height: 6),
                   Row(
@@ -1514,8 +1506,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                     ],
                   ),
                 ],
-
-                // Desconto de Cupom (se houver)
                 if (_valorDescontoCupom > 0) ...[
                   const SizedBox(height: 6),
                   Row(
@@ -1539,10 +1529,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                     ],
                   ),
                 ],
-
                 const SizedBox(height: 6),
-
-                // Taxa de Entrega / Frete
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -1561,10 +1548,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                     ),
                   ],
                 ),
-
                 const Divider(height: 20),
-
-                // Total Final
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -1589,8 +1573,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
             ),
           ),
         ),
-
-        // ⚖️ AVISO DE PESO VARIÁVEL (Injetado antes da finalização)
         if (_temItemVariavelPorPeso)
           Container(
             margin: const EdgeInsets.only(top: 12),
@@ -1622,7 +1604,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
               ],
             ),
           ),
-
         const SizedBox(height: 12),
         Card(
           elevation: 0,
@@ -1751,7 +1732,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     );
   }
 
-  // 🚀 Envio do Pedido com Recibo Detalhado e Opções de Navegação
   Future<void> _processarFinalizacaoPedido() async {
     showDialog(
       context: context,
@@ -1760,25 +1740,35 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     );
 
     try {
-      List<Map<String, dynamic>> itensPayload = [];
+      final List itensPayload = [];
 
       widget.carrinho.forEach((prodId, qtdOrGramas) {
         final prod = _encontrarProdutoGlobal(prodId);
         if (prod != null) {
           final bool pesavel = _eVariavelPorPeso(prod);
-          double quantidadeFinal = pesavel ? (qtdOrGramas / 1000.0) : qtdOrGramas.toDouble();
+          double quantidadeFinal = pesavel
+              ? (qtdOrGramas / 1000.0)
+              : qtdOrGramas.toDouble();
 
-          final double precoNormal = double.tryParse(prod['preco']?.toString().replaceAll(',', '.') ?? '') ?? 0.0;
+          final double precoNormal =
+              double.tryParse(
+                prod['preco']?.toString().replaceAll(',', '.') ?? '',
+              ) ??
+                  0.0;
           final dynamic precoClubeRaw = prod['preco_clube'];
-          final double precoClube = precoClubeRaw != null ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ?? 0.0) : 0.0;
-          final double precoEfetivo = (precoClube > 0 && precoClube < precoNormal) ? precoClube : precoNormal;
+          final double precoClube = precoClubeRaw != null
+              ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ??
+              0.0)
+              : 0.0;
+          final double precoEfetivo =
+          (precoClube > 0 && precoClube < precoNormal)
+              ? precoClube
+              : precoNormal;
 
           itensPayload.add({
             'produto_id': prodId,
             'quantidade': quantidadeFinal,
             'preco_unitario': precoEfetivo,
-            // 🥩 ADICIONE ESTA LINHA PARA ENVIAR O CORTE:
-            'observacao_corte': CorteContextoGlobal.cortesSelecionados[prodId] ?? '',
           });
         }
       });
@@ -1786,14 +1776,17 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       double valorTrocoPara = 0.0;
       if (_formaPagamento.toLowerCase() == 'dinheiro' && _precisaTroco) {
         String textoTroco = _trocoController.text.trim();
-        debugPrint("TEXTO DIGITADO NO TROCO: '$textoTroco'"); // 👈 Adicione isso para depurar no console
-
-        textoTroco = textoTroco.replaceAll('R\$', '').replaceAll(' ', '').replaceAll('.', '').replaceAll(',', '.');
+        textoTroco = textoTroco
+            .replaceAll('R\$', '')
+            .replaceAll(' ', '')
+            .replaceAll('.', '')
+            .replaceAll(',', '.');
         valorTrocoPara = double.tryParse(textoTroco) ?? 0.0;
-        debugPrint("VALOR CONVERTIDO DO TROCO: $valorTrocoPara"); // 👈 Veja se o número não está vindo 0.0 aqui
       }
 
-      String enderecoFinal = _tipoEntrega == 'delivery' ? _enderecoEntrega : 'Retirada no Box Smart';
+      String enderecoFinal = _tipoEntrega == 'delivery'
+          ? _enderecoEntrega
+          : 'Retirada no Box Smart';
 
       final payload = {
         'cliente_id': _clienteIdEfetivo,
@@ -1812,13 +1805,9 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         'valor_total': _valorTotalFinal,
       };
 
-      // 👇 FORÇANDO O IP DO SERVIDOR PARA GARANTIR A CONEXÃO (Substituindo baseUrl)
-      // 👇 Usando a baseUrl correta da tela + tratamento de barra final
       final String urlCorreta = widget.baseUrl.endsWith('/')
           ? '${widget.baseUrl}pedidos'
           : '${widget.baseUrl}/pedidos';
-
-      debugPrint("==== ENVIANDO PEDIDO PARA: $urlCorreta ====");
 
       final response = await http.post(
         Uri.parse(urlCorreta),
@@ -1831,30 +1820,50 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
       if (mounted) Navigator.pop(context); // Fecha o loading
 
-      debugPrint("STATUS CODE DA RESPOSTA: ${response.statusCode}");
-      debugPrint("CORPO DA RESPOSTA: ${response.body}");
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         final respostaData = json.decode(response.body);
-        final int pedidoId = respostaData['id'] ?? respostaData['pedido_id'] ?? 1001;
+        final int pedidoId =
+            respostaData['id'] ?? respostaData['pedido_id'] ?? 1001;
 
         final double reciboTotal = _valorTotalFinal;
-        setState(() => widget.carrinho.clear());
 
+        // Limpa o carrinho em memória e no SharedPreferences
+        setState(() => widget.carrinho.clear());
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final todasAsChaves = prefs.getKeys();
+          for (final chave in todasAsChaves) {
+            if (chave.toLowerCase().contains('carrinho') ||
+                chave.toLowerCase().contains('cart')) {
+              await prefs.remove(chave);
+            }
+          }
+        } catch (e) {
+          debugPrint('Erro ao limpar cache local do carrinho: $e');
+        }
         if (mounted) {
           showDialog(
             context: context,
             barrierDismissible: false,
             builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 30),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: Colors.green,
+                    size: 30,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Pedido #$pedidoId Realizado!',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -1864,44 +1873,80 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Seu pedido foi registrado com sucesso e já está sendo preparado.', style: TextStyle(fontSize: 12)),
+                  const Text(
+                    'Seu pedido foi registrado com sucesso e já está sendo preparado.',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   const Divider(height: 20),
-                  _buildReciboLinha('Valor Total:', 'R\$ ${reciboTotal.toStringAsFixed(2).replaceAll('.', ',')}', destaque: true),
+                  _buildReciboLinha(
+                    'Valor Total:',
+                    'R\$ ${reciboTotal.toStringAsFixed(2).replaceAll('.', ',')}',
+                    destaque: true,
+                  ),
                   const SizedBox(height: 6),
-                  _buildReciboLinha('Pagamento:', _formatarNomePagamento(_formaPagamento)),
+                  _buildReciboLinha(
+                    'Pagamento:',
+                    _formatarNomePagamento(_formaPagamento),
+                  ),
                   const SizedBox(height: 6),
-                  _buildReciboLinha('Entrega:', _tipoEntrega == 'delivery' ? 'Domicílio' : 'Retirada'),
+                  _buildReciboLinha(
+                    'Entrega:',
+                    _tipoEntrega == 'delivery' ? 'Domicílio' : 'Retirada',
+                  ),
                 ],
               ),
               actions: [
-                // 👇 Botão para voltar direto à Home / Início
                 TextButton(
                   onPressed: () {
-                    // Fecha o dialog e limpa o fluxo de checkout voltando para a primeira rota (Home)
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (context) => HomeScreen(
+                          clienteId: _clienteIdEfetivo,
+                          clienteNome: _clienteNome,
+                          token: _tokenEfetivo,
+                        ),
+                      ),
+                          (route) => false,
+                    );
                   },
                   child: const Text(
                     'Voltar ao Início',
-                    style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-
-                // Botão existente de Acompanhar Pedido
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaria),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaria,
+                  ),
                   onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
+                    // Empurra a HomeScreen como base da pilha e abre a ProfileScreen por cima dela,
+                    // garantindo que a seta de "Voltar" apareça no topo da ProfileScreen!
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (context) => HomeScreen(
+                          clienteId: _clienteIdEfetivo,
+                          clienteNome: _clienteNome,
+                          token: _tokenEfetivo,
+                        ),
+                      ),
+                          (route) => false,
+                    );
+                    Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => ProfileScreen(
                           clienteId: _clienteIdEfetivo,
-                          token: widget.token,
+                          token: _tokenEfetivo,
                         ),
                       ),
-                          (route) => route.isFirst,
                     );
                   },
-                  child: const Text('Acompanhar Pedido', style: TextStyle(color: Colors.white)),
+                  child: const Text(
+                    'Acompanhar Pedido',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
@@ -1910,21 +1955,26 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('ERRO AO CRIAR: ${response.body}'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('ERRO AO CRIAR: ${response.body}'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context); // Fecha loading caso dê crash
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('FALHA DE CONEXÃO: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('FALHA DE CONEXÃO: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
-  // 👇 FUNÇÕES AUXILIARES FORA DO ESCOPO DE ENVIO
   String _formatarNomePagamento(String codigo) {
     switch (codigo) {
       case 'pix':
@@ -1932,6 +1982,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       case 'cartao_credito':
         return 'Cartão de Crédito / Débito';
       case 'dinheiro':
+      case 'Dinheiro':
         return 'Dinheiro na Entrega/Retirada';
       default:
         return codigo;
@@ -1963,4 +2014,4 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       ],
     );
   }
-} // 👈 Fim da classe _CheckoutFlowScreenState
+}
