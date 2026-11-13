@@ -1254,25 +1254,31 @@ def obter_ai_insights(db: Session = Depends(get_db)):
 
     try:
         client = genai.Client(api_key=api_key)
-        max_tentativas = 3
-        for tentativa in range(1, max_tentativas + 1):
-            try:
-                resposta = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt,
-                )
-                texto = resposta.text or "Análise concluída sem retorno textual."
-                return {
-                    "insight": texto,
-                    "insights": texto,
-                    "status": "ok"
-                }
-            except Exception as e:
-                erro_msg = str(e)
-                if ("503" in erro_msg or "UNAVAILABLE" in erro_msg) and tentativa < max_tentativas:
-                    time.sleep(2 * tentativa)
-                    continue
-                raise e
+        modelos = ["gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-2.5-flash-lite"]
+        ultimo_erro = ""
+
+        for modelo in modelos:
+            max_tentativas = 2
+            for tentativa in range(1, max_tentativas + 1):
+                try:
+                    resposta = client.models.generate_content(
+                        model=modelo,
+                        contents=prompt,
+                    )
+                    texto = resposta.text or "Análise concluída sem retorno textual."
+                    return {
+                        "insight": texto,
+                        "insights": texto,
+                        "status": "ok"
+                    }
+                except Exception as e:
+                    ultimo_erro = str(e)
+                    if ("503" in ultimo_erro or "UNAVAILABLE" in ultimo_erro) and tentativa < max_tentativas:
+                        time.sleep(2 * tentativa)
+                        continue
+                    break
+
+        raise Exception(ultimo_erro)
 
     except Exception as e:
         erro_msg = str(e)
