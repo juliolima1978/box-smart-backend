@@ -19,6 +19,7 @@ import 'entregador_screen.dart';
 import 'gerenciar_usuarios_tab.dart';
 import 'login_admin_screen.dart';
 import 'relatorio_vendas_bairro_tab.dart';
+import 'gerenciar_cupons_tab.dart';
 
 class MenuItemPortal {
   final String label;
@@ -181,6 +182,13 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
         icon: Icons.star_outline_rounded,
         selectedIcon: Icons.star_rounded,
         tela: BoxPrimeAdminScreen(baseUrl: widget.baseUrl, token: widget.token),
+        perfisPermitidos: ['admin', 'gestor'],
+      ),
+      MenuItemPortal(
+        label: 'Cupons',
+        icon: Icons.local_offer_outlined,
+        selectedIcon: Icons.local_offer,
+        tela: GerenciarCuponsTab(baseUrl: widget.baseUrl, token: widget.token),
         perfisPermitidos: ['admin', 'gestor'],
       ),
       MenuItemPortal(

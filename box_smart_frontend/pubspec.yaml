@@ -117,9 +117,9 @@ flutter_launcher_icons:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 flutter_native_splash:
-  color: "#2E7D32"
+  color: "#186b4d"
   image: assets/icon_tesca1.png
   android_12:
     image: assets/icon_tesca1.png
-    color: "#2E7D32"
-    icon_background_color: "#2E7D32"
+    color: "#186b4d"
+    icon_background_color: "#186b4d"

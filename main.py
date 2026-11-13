@@ -1220,32 +1220,72 @@ def relatorio_metricas_bi(db: Session = Depends(get_db)):
 @app.get("/admin/ai-insights/")
 @app.get("/admin/ai-insights")
 def obter_ai_insights(db: Session = Depends(get_db)):
-    prompt = "Análise os dados de vendas e estoque da Box Smart e gere 3 insights..."
+    # 1. Coleta dados reais de vendas e estoque para enriquecer a análise
+    pedidos = db.query(models.Pedido).all()
+    produtos = db.query(models.Produto).all()
 
-    client = genai.Client()
-    chat = client.chats.create(model="gemini-2.5-flash")
+    total_pedidos = len(pedidos)
+    faturamento = sum((p.total or 0.0) for p in pedidos)
+    ticket_medio = (faturamento / total_pedidos) if total_pedidos > 0 else 0.0
+    estoque_baixo = [
+        p.nome for p in produtos
+        if getattr(p, "estoque", None) is not None and p.estoque <= 5
+    ][:5]
 
-    max_tentativas = 3
-    for tentativa in range(1, max_tentativas + 1):
-        try:
-            resposta = chat.send_message(prompt)
-            return {"insights": resposta.text}
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        msg_sem_chave = (
+            "A chave GEMINI_API_KEY ainda não foi configurada nas variáveis de ambiente do servidor."
+        )
+        return {
+            "insight": msg_sem_chave,
+            "insights": msg_sem_chave,
+            "status": "sem_chave"
+        }
 
-        except Exception as e:
-            erro_msg = str(e)
-            
-            if "503" in erro_msg or "UNAVAILABLE" in erro_msg:
-                if tentativa < max_tentativas:
-                    tempo_espera = 2 * tentativa
-                    time.sleep(tempo_espera)
+    prompt = (
+        f"Analise os dados atuais do supermercado Box Smart e gere 3 insights curtos, "
+        f"práticos e objetivos em português (use tópicos com bullet points):\n"
+        f"- Total de pedidos: {total_pedidos}\n"
+        f"- Faturamento acumulado: R$ {faturamento:.2f}\n"
+        f"- Ticket médio: R$ {ticket_medio:.2f}\n"
+        f"- Produtos com estoque crítico (<= 5 un): {', '.join(estoque_baixo) if estoque_baixo else 'Nenhum'}"
+    )
+
+    try:
+        client = genai.Client(api_key=api_key)
+        max_tentativas = 3
+        for tentativa in range(1, max_tentativas + 1):
+            try:
+                resposta = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                )
+                texto = resposta.text or "Análise concluída sem retorno textual."
+                return {
+                    "insight": texto,
+                    "insights": texto,
+                    "status": "ok"
+                }
+            except Exception as e:
+                erro_msg = str(e)
+                if ("503" in erro_msg or "UNAVAILABLE" in erro_msg) and tentativa < max_tentativas:
+                    time.sleep(2 * tentativa)
                     continue
-            
-            return {
-                "insights": "O serviço de IA está com alta demanda no momento. Tente novamente em alguns instantes.",
-                "status": "indisponivel",
-                "detalhes": erro_msg
-            }
+                raise e
 
+    except Exception as e:
+        erro_msg = str(e)
+        msg_fallback = (
+            "O serviço de IA está temporariamente indisponível ou com alta demanda. "
+            "Tente novamente em alguns instantes."
+        )
+        return {
+            "insight": msg_fallback,
+            "insights": msg_fallback,
+            "status": "indisponivel",
+            "detalhes": erro_msg
+        }
 
 # ==========================================
 # 📂 ROTAS DE CATEGORIAS E DEPARTAMENTOS

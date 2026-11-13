@@ -260,9 +260,26 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     }
   }
 
-  Future<void> _aplicarCupom() async {
-    final codigo = _cupomController.text.trim();
+  void _removerCupom({bool limparTexto = true}) {
+    setState(() {
+      _codigoCupomAplicado = null;
+      _valorDescontoCupom = 0.0;
+      if (limparTexto) {
+        _cupomController.clear();
+      }
+    });
+  }
+
+  Future<void> _aplicarCupom({bool silencioso = false}) async {
+    final codigo = (_codigoCupomAplicado ?? _cupomController.text)
+        .trim()
+        .toUpperCase();
     if (codigo.isEmpty) return;
+
+    if (widget.carrinho.isEmpty) {
+      _removerCupom();
+      return;
+    }
 
     setState(() => _carregandoCupom = true);
 
@@ -273,16 +290,22 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_tokenEfetivo',
         },
-        body: jsonEncode({'codigo': codigo, 'subtotal': _subtotalComDesconto}),
+        body: jsonEncode({
+          'codigo': codigo,
+          'subtotal': _subtotalComDesconto,
+          'cliente_id': _clienteIdEfetivo,
+        }),
       );
 
-      if (response.statusCode == 200) {
-        final dados = jsonDecode(response.body);
+      final dados = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && dados['valido'] == true) {
         setState(() {
           _valorDescontoCupom = (dados['valor_desconto'] as num).toDouble();
-          _codigoCupomAplicado = dados['codigo'] ?? codigo.toUpperCase();
+          _codigoCupomAplicado = dados['codigo'] ?? codigo;
+          _cupomController.text = _codigoCupomAplicado!;
         });
-        if (mounted) {
+        if (!silencioso && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(dados['mensagem'] ?? 'Cupom aplicado com sucesso!'),
@@ -291,18 +314,23 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
           );
         }
       } else {
-        final erro = jsonDecode(response.body);
+        final bool estavaAplicado = _codigoCupomAplicado != null;
+        _removerCupom(limparTexto: estavaAplicado);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(erro['detail'] ?? 'Cupom inválido.'),
+              content: Text(
+                estavaAplicado
+                    ? 'Cupom removido: ${dados['detail'] ?? 'não atende mais às regras do carrinho.'}'
+                    : (dados['detail'] ?? 'Cupom inválido.'),
+              ),
               backgroundColor: Colors.red,
             ),
           );
         }
       }
     } catch (e) {
-      if (mounted) {
+      if (!silencioso && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro de conexão ao validar cupom: $e'),
@@ -312,6 +340,16 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       }
     } finally {
       if (mounted) setState(() => _carregandoCupom = false);
+    }
+  }
+
+  void _revalidarCupomSeAtivo() {
+    if (_codigoCupomAplicado != null) {
+      if (widget.carrinho.isEmpty) {
+        _removerCupom();
+      } else {
+        _aplicarCupom(silencioso: true);
+      }
     }
   }
 
@@ -363,7 +401,8 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     return economia;
   }
 
-  double get _subtotalComDesconto => _subtotalSemDesconto - _totalEconomiaClube;
+  double get _subtotalComDesconto =>
+      _subtotalSemDesconto - _totalEconomiaClube;
 
   double get _valorTaxaEntrega =>
       _tipoEntrega == 'delivery' ? _valorFreteCalculado : 0.0;
@@ -747,6 +786,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                         }
                                       }
                                     });
+                                    _revalidarCupomSeAtivo();
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
@@ -784,6 +824,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                             qtdOrGramas + 1;
                                       }
                                     });
+                                    _revalidarCupomSeAtivo();
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
@@ -798,9 +839,12 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 InkWell(
-                                  onTap: () => setState(
-                                        () => widget.carrinho.remove(prodId),
-                                  ),
+                                  onTap: () {
+                                    setState(
+                                          () => widget.carrinho.remove(prodId),
+                                    );
+                                    _revalidarCupomSeAtivo();
+                                  },
                                   child: const Icon(
                                     Icons.delete_outline_rounded,
                                     size: 16,
@@ -891,55 +935,108 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _cupomController,
-                        decoration: const InputDecoration(
-                          hintText: 'Insira seu cupom (Ex: BOX10)',
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                if (_codigoCupomAplicado != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF15803D),
-                      ),
-                      onPressed: _carregandoCupom ? null : _aplicarCupom,
-                      child: _carregandoCupom
-                          ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                          : const Text(
-                        'Aplicar',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade400),
                     ),
-                  ],
-                ),
-                if (_codigoCupomAplicado != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'Cupom "$_codigoCupomAplicado" aplicado com sucesso!',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.local_offer_rounded,
+                          color: Colors.green.shade700,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Cupom "$_codigoCupomAplicado" aplicado!',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.green.shade800,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Desconto de R\$ ${_valorDescontoCupom.toStringAsFixed(2).replaceAll('.', ',')}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_carregandoCupom)
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          IconButton(
+                            onPressed: () => _removerCupom(),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.redAccent,
+                              size: 20,
+                            ),
+                            tooltip: 'Remover cupom',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                      ],
                     ),
+                  )
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _cupomController,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: const InputDecoration(
+                            hintText: 'Insira seu cupom (Ex: BOX10)',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF15803D),
+                        ),
+                        onPressed: _carregandoCupom ? null : _aplicarCupom,
+                        child: _carregandoCupom
+                            ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                            : const Text(
+                          'Aplicar',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
                 const Divider(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1757,7 +1854,9 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                   0.0;
           final dynamic precoClubeRaw = prod['preco_clube'];
           final double precoClube = precoClubeRaw != null
-              ? (double.tryParse(precoClubeRaw.toString().replaceAll(',', '.')) ??
+              ? (double.tryParse(
+            precoClubeRaw.toString().replaceAll(',', '.'),
+          ) ??
               0.0)
               : 0.0;
           final double precoEfetivo =
