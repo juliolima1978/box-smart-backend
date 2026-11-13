@@ -1244,7 +1244,7 @@ def obter_ai_insights(db: Session = Depends(get_db)):
         }
 
     prompt = (
-        f"Analise os dados atuais do supermercado Box Smart e gere 3 insights curtos, "
+        f"Analise os dados atuais do supermercado Tescarollo e gere 3 insights curtos, "
         f"práticos e objetivos em português (use tópicos com bullet points):\n"
         f"- Total de pedidos: {total_pedidos}\n"
         f"- Faturamento acumulado: R$ {faturamento:.2f}\n"
