@@ -1254,7 +1254,7 @@ def obter_ai_insights(db: Session = Depends(get_db)):
 
     try:
         client = genai.Client(api_key=api_key)
-        modelos = ["gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-2.5-flash-lite"]
+        modelos = ["gemini-3.5-flash-lite", "gemini-3.5-flash"]
         ultimo_erro = ""
 
         for modelo in modelos:
@@ -1282,14 +1282,17 @@ def obter_ai_insights(db: Session = Depends(get_db)):
 
     except Exception as e:
         erro_msg = str(e)
-        msg_fallback = (
-            "O serviço de IA está temporariamente indisponível ou com alta demanda. "
-            "Tente novamente em alguns instantes."
+        resumo_local = (
+            f"• **Desempenho Geral:** {total_pedidos} pedidos registrados, totalizando "
+            f"R$ {faturamento:.2f} com ticket médio de R$ {ticket_medio:.2f}.\n"
+            f"• **Atenção ao Estoque:** "
+            f"{'Repor urgentemente: ' + ', '.join(estoque_baixo) if estoque_baixo else 'Nenhum item em nível crítico no momento.'}\n"
+            f"• **Ação Recomendada:** Ative um cupom de desconto relâmpago ou envio de push para elevar o ticket médio acima de R$ {(ticket_medio * 1.15):.2f}."
         )
         return {
-            "insight": msg_fallback,
-            "insights": msg_fallback,
-            "status": "indisponivel",
+            "insight": resumo_local,
+            "insights": resumo_local,
+            "status": "fallback_local",
             "detalhes": erro_msg
         }
 
