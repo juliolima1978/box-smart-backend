@@ -67,6 +67,8 @@ try:
         connection.execute(text("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS eh_membro_clube BOOLEAN DEFAULT FALSE;"))
         connection.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS subtotal FLOAT DEFAULT 0.0;"))
         connection.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS taxa_entrega FLOAT DEFAULT 0.0;"))
+        connection.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cupom_codigo VARCHAR;"))
+        connection.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS valor_desconto_cupom FLOAT DEFAULT 0.0;"))
         connection.commit()
 except Exception as e:
     print(f"Aviso ao verificar colunas no PostgreSQL: {e}")
@@ -82,34 +84,7 @@ try:
             print("⚠️ Arquivo 'serviceAccountKey.json' não encontrado na raiz. Notificações Push e Firestore desativados.")
 except Exception as e:
     print(f"⚠️ Erro ao inicializar o Firebase: {e}")
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-    
-    
+      
 # ==========================================
 # 🔄 FUNÇÃO PARA ATUALIZAR PREÇOS DE PROMOÇÃO
 # ==========================================
@@ -699,11 +674,6 @@ def atualizar_configuracoes_app(novas_configs: dict, db: Session = Depends(get_d
 # ==========================================
 # 🔄 FUNÇÃO PARA USO DE CUPONS
 # ==========================================
-
-from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime
-
 class ValidarCupomRequest(BaseModel):
     codigo: str
     subtotal: float
@@ -718,40 +688,15 @@ class CupomCreate(BaseModel):
     uso_unico_por_cliente: bool = True
     validade: Optional[datetime] = None
 
-@app.post("/api/cupons/validar")
+@app.post("/api/cupons/validar", tags=["Cupons"])
+@app.post("/api/cupons/validar/", tags=["Cupons"])
 def validar_cupom(dados: ValidarCupomRequest, db: Session = Depends(get_db)):
-    codigo_limpo = dados.codigo.strip().upper()
-    cupom = db.query(models.Cupom).filter(models.Cupom.codigo == codigo_limpo).first()
-
-    if not cupom or not cupom.ativo:
-        raise HTTPException(status_code=400, detail="Cupom inválido ou inativo.")
-
-    if cupom.validade and datetime.utcnow() > cupom.validade:
-        raise HTTPException(status_code=400, detail="Este cupom já expirou.")
-
-    if cupom.limite_usos is not None and cupom.usos_atuais >= cupom.limite_usos:
-        raise HTTPException(status_code=400, detail="Limite de usos deste cupom atingido.")
-
-    if dados.subtotal < cupom.valor_minimo_pedido:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Valor mínimo para este cupom é R$ {cupom.valor_minimo_pedido:.2f}."
-        )
-
-    if cupom.uso_unico_por_cliente and dados.cliente_id and dados.cliente_id > 0:
-        ja_usou = db.query(models.CupomUso).filter(
-            models.CupomUso.cupom_id == cupom.id,
-            models.CupomUso.cliente_id == dados.cliente_id
-        ).first()
-        if ja_usou:
-            raise HTTPException(status_code=400, detail="Você já utilizou este cupom em uma compra anterior.")
-
-    # Calcula o desconto real
-    if cupom.tipo_desconto == "percentual":
-        desconto = round(dados.subtotal * (cupom.valor_desconto / 100.0), 2)
-    else:
-        desconto = min(cupom.valor_desconto, dados.subtotal)
-
+    cupom, desconto = crud.validar_cupom_regras(
+        db=db,
+        codigo=dados.codigo,
+        subtotal=dados.subtotal,
+        cliente_id=dados.cliente_id or 0
+    )
     return {
         "valido": True,
         "codigo": cupom.codigo,
@@ -759,29 +704,25 @@ def validar_cupom(dados: ValidarCupomRequest, db: Session = Depends(get_db)):
         "mensagem": f"Cupom {cupom.codigo} aplicado! Desconto de R$ {desconto:.2f}."
     }
 
-# Rota para o Painel Administrativo criar cupons reais
-@app.post("/admin/cupons/", status_code=201)
+@app.post("/admin/cupons/", status_code=201, tags=["Cupons"])
+@app.post("/admin/cupons", status_code=201, tags=["Cupons"])
 def criar_cupom(cupom: CupomCreate, db: Session = Depends(get_db)):
-    codigo_limpo = cupom.codigo.strip().upper()
-    existente = db.query(models.Cupom).filter(models.Cupom.codigo == codigo_limpo).first()
-    if existente:
-        raise HTTPException(status_code=400, detail="Já existe um cupom com este código.")
+    return crud.criar_cupom(db=db, cupom=cupom)
 
-    novo = models.Cupom(
-        codigo=codigo_limpo,
-        tipo_desconto=cupom.tipo_desconto,
-        valor_desconto=cupom.valor_desconto,
-        valor_minimo_pedido=cupom.valor_minimo_pedido,
-        limite_usos=cupom.limite_usos,
-        uso_unico_por_cliente=cupom.uso_unico_por_cliente,
-        validade=cupom.validade,
-        ativo=True
-    )
-    db.add(novo)
+@app.get("/admin/cupons/", tags=["Cupons"])
+@app.get("/admin/cupons", tags=["Cupons"])
+def listar_cupons(db: Session = Depends(get_db)):
+    return crud.listar_cupons(db=db)
+
+@app.patch("/admin/cupons/{cupom_id}/toggle", tags=["Cupons"])
+@app.patch("/admin/cupons/{cupom_id}/toggle/", tags=["Cupons"])
+def alternar_status_cupom(cupom_id: int, db: Session = Depends(get_db)):
+    cupom = db.query(models.Cupom).filter(models.Cupom.id == cupom_id).first()
+    if not cupom:
+        raise HTTPException(status_code=404, detail="Cupom não encontrado.")
+    cupom.ativo = not cupom.ativo
     db.commit()
-    db.refresh(novo)
-    return novo
-
+    return {"id": cupom.id, "codigo": cupom.codigo, "ativo": cupom.ativo}
 
 # ==========================================
 # 📂 REGRAS DE NEGÓCIO E MÁQUINA DE ESTADOS
@@ -2008,7 +1949,6 @@ def buscar_lat_long_nominatim(rua: str, numero: str, cidade: str, estado: str, c
             
     return None, None
 
-
 @app.post("/pedidos/", status_code=status.HTTP_201_CREATED)
 @app.post("/pedidos", status_code=status.HTTP_201_CREATED)
 async def criar_pedido(
@@ -2016,21 +1956,31 @@ async def criar_pedido(
     db: Session = Depends(get_db),
     current_user: models.Cliente = Depends(get_current_user)
 ):
-    # Lemos o JSON cru (raw) diretamente do app para garantir que nada seja perdido
     payload = await request.json()
-    
     print(f"🚀 PAYLOAD CRU RECEBIDO NO BACKEND: {payload}")
 
-    # Forçamos a leitura segura das chaves, lidando com nulls e erros de formatação
     subtotal = float(payload.get('valor_subtotal') or 0.0)
     taxa_entrega = float(payload.get('taxa_entrega') or 0.0)
     valor_total = float(payload.get('valor_total') or 0.0)
 
-    print(f"💰 FINANCEIRO APÓS LEITURA: Subtotal={subtotal} | Frete={taxa_entrega} | Total={valor_total}")
+    # Validação e cálculo real do cupom no servidor
+    cupom_codigo_raw = payload.get('cupom_codigo')
+    cupom_obj = None
+    desconto_cupom_real = 0.0
+
+    if cupom_codigo_raw and str(cupom_codigo_raw).strip():
+        cupom_obj, desconto_cupom_real = crud.validar_cupom_regras(
+            db=db,
+            codigo=str(cupom_codigo_raw),
+            subtotal=subtotal,
+            cliente_id=current_user.id
+        )
+        # Recalcula o total final garantindo que o desconto aplicado é o oficial do cupom
+        valor_total = max(0.0, round((subtotal - desconto_cupom_real) + taxa_entrega, 2))
 
     endereco_req = payload.get('endereco_entrega', None)
     end_entrega = (
-        endereco_req.strip() if (endereco_req and endereco_req.strip()) 
+        endereco_req.strip() if (endereco_req and endereco_req.strip())
         else (obter_endereco_formatado_cliente(current_user) or "Endereço não informado")
     )
 
@@ -2038,7 +1988,6 @@ async def criar_pedido(
     troco = float(payload.get('troco_para') or 0.0)
     pago = bool(payload.get('esta_pago', False))
 
-    # Cria o pedido FORÇANDO os valores exatos recebidos
     novo_pedido = models.Pedido(
         cliente_id=current_user.id,
         status="PENDENTE",
@@ -2051,8 +2000,8 @@ async def criar_pedido(
         esta_pago=pago,
         opcao_substituicao=payload.get('opcao_substituicao', None),
         deseja_cpf_nota=bool(payload.get('deseja_cpf_nota', False)),
-        cupom_codigo=payload.get('cupom_codigo', None),
-        valor_desconto_cupom=float(payload.get('valor_desconto_cupom') or 0.0),
+        cupom_codigo=cupom_obj.codigo if cupom_obj else None,
+        valor_desconto_cupom=desconto_cupom_real,
         data_criacao=agora_brasilia()
     )
 
@@ -2060,22 +2009,30 @@ async def criar_pedido(
     db.commit()
     db.refresh(novo_pedido)
 
-    # Lemos os itens e o preço unitário que veio do App
+    # Dá baixa definitiva no cupom e vincula ao cliente e pedido
+    if cupom_obj:
+        cupom_obj.usos_atuais = (cupom_obj.usos_atuais or 0) + 1
+        registro_uso = models.CupomUso(
+            cupom_id=cupom_obj.id,
+            cliente_id=current_user.id,
+            pedido_id=novo_pedido.id
+        )
+        db.add(registro_uso)
+
     itens = payload.get('itens', [])
     for item in itens:
         db_item = models.ItemPedido(
             pedido_id=novo_pedido.id,
             produto_id=item['produto_id'],
             quantidade=float(item['quantidade']),
-            preco_unitario=float(item.get('preco_unitario') or 0.0), # 👈 Confia 100% no app!
+            preco_unitario=float(item.get('preco_unitario') or 0.0),
             observacao_corte=item.get('observacao_corte')
         )
         db.add(db_item)
-    
+
     db.commit()
     db.refresh(novo_pedido)
 
-    # Notificação...
     if getattr(current_user, 'fcm_token', None):
         enviar_notificacao_push(
             fcm_token=current_user.fcm_token,
@@ -2084,7 +2041,6 @@ async def criar_pedido(
             dados_extra={"pedido_id": str(novo_pedido.id), "status": "PENDENTE"}
         )
 
-    # O FastApi converterá a classe SQLAlchemy para o schema correspondente, se necessário
     return novo_pedido
 
 @app.get("/admin/pedidos")
