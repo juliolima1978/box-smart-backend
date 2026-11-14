@@ -213,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       decoration: BoxDecoration(
-        color: AppColors.primaria,
+        color: Colors.red.shade300,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -269,11 +269,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Image.asset(
+                        'assets/icones/order-history_thin.png',
+                        width: 16,
+                        height: 16,
+                        fit: BoxFit.contain,
+                        color: AppColors.fundo,
+                        colorBlendMode: BlendMode.srcIn,
+                      ),
+                      /*const Icon(
                         Icons.shopping_bag_outlined,
                         color: Colors.white,
                         size: 16,
-                      ),
+                      ),*/
                       const SizedBox(width: 6),
                       Text(
                         '$qtdItens ${qtdItens == 1 ? 'item' : 'itens'}',

@@ -150,7 +150,7 @@ class _RedefinirSenhaScreenState extends State<RedefinirSenhaScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  labelText: 'E-mail',
+                  labelText: 'E-mail *',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.email_outlined),
                 ),
@@ -161,7 +161,7 @@ class _RedefinirSenhaScreenState extends State<RedefinirSenhaScreen> {
               TextField(
                 controller: _tokenController,
                 decoration: InputDecoration(
-                  labelText: 'Código de Recuperação',
+                  labelText: 'Código de Recuperação *',
                   hintText: 'Ex: A1B2C3',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.vpn_key_outlined),
@@ -174,7 +174,7 @@ class _RedefinirSenhaScreenState extends State<RedefinirSenhaScreen> {
                 controller: _senhaController,
                 obscureText: _obscureSenha,
                 decoration: InputDecoration(
-                  labelText: 'Nova Senha',
+                  labelText: 'Nova Senha *',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.lock_outline_rounded),
                   suffixIcon: IconButton(
@@ -190,7 +190,7 @@ class _RedefinirSenhaScreenState extends State<RedefinirSenhaScreen> {
                 controller: _confirmarSenhaController,
                 obscureText: _obscureConfirmar,
                 decoration: InputDecoration(
-                  labelText: 'Confirmar Nova Senha',
+                  labelText: 'Confirmar Nova Senha *',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.lock_outline_rounded),
                   suffixIcon: IconButton(

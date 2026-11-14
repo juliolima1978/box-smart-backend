@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   firebase_core
   geolocator_windows
+  restart_app
   share_plus
   url_launcher_windows
 )

@@ -1,5 +1,6 @@
 import 'package:box_smart_frontend/screens/home_screen.dart';
 import 'package:box_smart_frontend/screens/splash_screen.dart';
+import 'package:box_smart_frontend/widgets/atualizador_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';

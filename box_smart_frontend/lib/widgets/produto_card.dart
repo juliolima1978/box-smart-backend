@@ -244,7 +244,7 @@ class _ProdutoCardState extends State<ProdutoCard> {
       onTap: widget.onTapDetalhes,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.fundo,
           border: Border.all(color: Colors.grey.shade200, width: 0.5),
         ),
         child: LayoutBuilder(
