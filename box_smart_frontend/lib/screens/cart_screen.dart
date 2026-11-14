@@ -1003,7 +1003,7 @@ class _CartScreenState extends State<CartScreen> {
         _tratarAcaoVoltar();
       },
       child: Scaffold(
-        backgroundColor: Colors.grey.shade50,
+        backgroundColor: Color(0xFFfefefe),
         appBar: AppBar(
           title: const Text(
             'Carrinho e Fechamento',
@@ -1022,15 +1022,21 @@ class _CartScreenState extends State<CartScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.shopping_bag_outlined, size: 80, color: Colors.grey.shade400),
-              const SizedBox(height: 16),
+              Image.asset(
+                'assets/icones/carrinho_vazio1.png',
+                width: 450,
+                height: 450,
+                fit: BoxFit.contain,
+                colorBlendMode: BlendMode.srcIn,
+              ),
+              //const SizedBox(height: 2),
               const Text(
-                'Sua sacola está vazia',
+                'Seu carrinho está vazio',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
               ),
               const SizedBox(height: 8),
               const Text(
-                'Adicione produtos na Home para fechar a compra.',
+                'Bora resolver isso?',
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
               const SizedBox(height: 20),

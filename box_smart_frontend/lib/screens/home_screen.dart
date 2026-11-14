@@ -138,6 +138,187 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  double get _valorTotalCarrinhoHome {
+    double total = 0.0;
+    _carrinho.forEach((prodId, qtdOrGramas) {
+      if (qtdOrGramas <= 0) return;
+      try {
+        final prod = _produtosBackend.firstWhere(
+              (p) =>
+          p is Map &&
+              (int.tryParse(
+                p['id']?.toString() ?? p['codigo']?.toString() ?? '',
+              ) ==
+                  prodId),
+          orElse: () => null,
+        );
+        if (prod != null) {
+          final double precoNormal =
+              double.tryParse(
+                prod['preco']?.toString().replaceAll(',', '.') ?? '',
+              ) ??
+                  0.0;
+          final dynamic precoClubeRaw = prod['preco_clube'];
+          final double precoClube = precoClubeRaw != null
+              ? (double.tryParse(
+            precoClubeRaw.toString().replaceAll(',', '.'),
+          ) ??
+              0.0)
+              : 0.0;
+          final double precoEfetivo =
+          (precoClube > 0 && precoClube < precoNormal)
+              ? precoClube
+              : precoNormal;
+
+          final String nome = (prod['nome'] ?? '').toString().toLowerCase();
+          final String un = (prod['unidade'] ?? prod['unidade_medida'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          final dynamic varPeso =
+              prod['variavel_por_peso'] ??
+                  prod['peso_variavel'] ??
+                  prod['fracionado'] ??
+                  prod['pesavel'];
+          final bool pesavel =
+              varPeso == true ||
+                  varPeso == 1 ||
+                  varPeso.toString().toLowerCase() == 'true' ||
+                  ['kg', 'quilo', 'quilos', 'g', 'gramas'].contains(un) ||
+                  un.startsWith('kg') ||
+                  nome.contains('patinho') ||
+                  nome.contains('alcatra') ||
+                  nome.contains('carne') ||
+                  nome.contains('frango') ||
+                  nome.contains('queijo');
+
+          final double fator = pesavel
+              ? (qtdOrGramas / 1000.0)
+              : qtdOrGramas.toDouble();
+          total += precoEfetivo * fator;
+        }
+      } catch (_) {}
+    });
+    return total;
+  }
+
+  Widget? _buildBarraCarrinhoFlutuante() {
+    final int qtdItens = _carrinho.entries.where((e) => e.value > 0).length;
+    if (qtdItens == 0 || _indiceAtual == 2) return null;
+
+    final String totalFormatado = _valorTotalCarrinhoHome
+        .toStringAsFixed(2)
+        .replaceAll('.', ',');
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      decoration: BoxDecoration(
+        color: AppColors.primaria,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CartScreen(
+                  clienteId: widget.clienteId,
+                  token: widget.token,
+                  carrinho: _carrinho,
+                  produtos: _produtosBackend,
+                  clienteNome: widget.clienteNome,
+                  favoritosIds: _favoritosIds,
+                  onLimparCarrinho: () {
+                    setState(() {
+                      _carrinho.clear();
+                    });
+                    _salvarCarrinhoLocal();
+                  },
+                ),
+              ),
+            ).then((_) {
+              if (mounted) {
+                setState(() {});
+                _salvarCarrinhoLocal();
+              }
+            });
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.shopping_bag_outlined,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$qtdItens ${qtdItens == 1 ? 'item' : 'itens'}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Ver carrinho',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Text(
+                  'R\$ $totalFormatado',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _carregarConfiguracoesApp() async {
     try {
       final response = await http.get(
@@ -384,6 +565,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final barraCarrinho = _buildBarraCarrinhoFlutuante();
+
     final List<Widget> telas = [
       _buildHomeConteudo(context),
       BuscaRapidaScreen(
@@ -453,124 +636,130 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Scaffold(
         body: telas[_indiceAtual],
-        bottomNavigationBar: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (barraCarrinho != null) barraCarrinho,
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BottomNavigationBar(
-              currentIndex: _indiceAtual > 2 ? 2 : _indiceAtual,
-              onTap: (index) {
-                if (index == 2) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BoxPrimeScreen(
-                        clienteId: widget.clienteId,
-                        token: widget.token,
-                        baseUrl: baseUrl,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BottomNavigationBar(
+                  currentIndex: _indiceAtual > 2 ? 2 : _indiceAtual,
+                  onTap: (index) {
+                    if (index == 2) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => BoxPrimeScreen(
+                            clienteId: widget.clienteId,
+                            token: widget.token,
+                            baseUrl: baseUrl,
+                          ),
+                        ),
+                      );
+                    } else {
+                      setState(() {
+                        _indiceAtual = index;
+                      });
+                    }
+                  },
+                  selectedItemColor: AppColors.primaria,
+                  unselectedItemColor: Colors.black,
+                  selectedLabelStyle: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  unselectedLabelStyle: const TextStyle(fontSize: 10),
+                  type: BottomNavigationBarType.fixed,
+                  backgroundColor: Colors.white,
+                  elevation: 0,
+                  selectedIconTheme: const IconThemeData(size: 24),
+                  unselectedIconTheme: const IconThemeData(size: 24),
+                  items: [
+                    BottomNavigationBarItem(
+                      icon: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Image.asset(
+                          'assets/icones/home_thin.png',
+                          width: 22,
+                          height: 22,
+                          fit: BoxFit.contain,
+                          color: _indiceAtual == 0
+                              ? AppColors.primaria
+                              : Colors.grey.shade400,
+                          colorBlendMode: BlendMode.srcIn,
+                        ),
                       ),
+                      label: 'Início',
                     ),
-                  );
-                } else {
-                  setState(() {
-                    _indiceAtual = index;
-                  });
-                }
-              },
-              selectedItemColor: AppColors.primaria,
-              unselectedItemColor: Colors.black,
-              selectedLabelStyle: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+                    BottomNavigationBarItem(
+                      icon: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Image.asset(
+                          'assets/icones/catalog-magazine_thin.png',
+                          width: 22,
+                          height: 22,
+                          fit: BoxFit.contain,
+                          color: _indiceAtual == 1
+                              ? AppColors.primaria
+                              : Colors.grey.shade400,
+                          colorBlendMode: BlendMode.srcIn,
+                        ),
+                      ),
+                      label: 'Lista Rápida',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade700,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.workspace_premium_rounded,
+                                size: 15,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Prime',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      label: 'Box Prime',
+                    ),
+                  ],
+                ),
               ),
-              unselectedLabelStyle: const TextStyle(fontSize: 10),
-              type: BottomNavigationBarType.fixed,
-              backgroundColor: Colors.white,
-              elevation: 0,
-              selectedIconTheme: const IconThemeData(size: 24),
-              unselectedIconTheme: const IconThemeData(size: 24),
-              items: [
-                BottomNavigationBarItem(
-                  icon: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Image.asset(
-                      'assets/icones/home_thin.png',
-                      width: 22,
-                      height: 22,
-                      fit: BoxFit.contain,
-                      color: _indiceAtual == 0
-                          ? AppColors.primaria
-                          : Colors.grey.shade400,
-                      colorBlendMode: BlendMode.srcIn,
-                    ),
-                  ),
-                  label: 'Início',
-                ),
-                BottomNavigationBarItem(
-                  icon: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Image.asset(
-                      'assets/icones/catalog-magazine_thin.png',
-                      width: 22,
-                      height: 22,
-                      fit: BoxFit.contain,
-                      color: _indiceAtual == 1
-                          ? AppColors.primaria
-                          : Colors.grey.shade400,
-                      colorBlendMode: BlendMode.srcIn,
-                    ),
-                  ),
-                  label: 'Lista Rápida',
-                ),
-                BottomNavigationBarItem(
-                  icon: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade700,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.workspace_premium_rounded,
-                            size: 15,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'Prime',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  label: 'Box Prime',
-                ),
-              ],
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -661,13 +850,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             tooltip: 'Perfil',
                             onPressed: () {
                               // 🌟 Verifica se é um convidado (sem token ou ID 0)
-                              if (widget.clienteId == 0 || widget.token.isEmpty) {
+                              if (widget.clienteId == 0 ||
+                                  widget.token.isEmpty) {
                                 // Exibe o modal elegante de boas-vindas que você criou
                                 showModalBottomSheet(
                                   context: context,
                                   isScrollControlled: true,
                                   backgroundColor: Colors.transparent,
-                                  builder: (context) => const ConvidadoPerfilModal(),
+                                  builder: (context) =>
+                                  const ConvidadoPerfilModal(),
                                 );
                               } else {
                                 // Se já estiver logado, abre o perfil normalmente
@@ -766,26 +957,23 @@ class _HomeScreenState extends State<HomeScreen> {
                               _logoUrl,
                               fit: BoxFit.contain,
                               errorBuilder:
-                                  (
-                                  context,
-                                  error,
-                                  stackTrace,
-                                  ) => Image.asset(
-                                'assets/logogimptesc.png',
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) =>
-                                const Text(
-                                  'BOX SMART',
-                                  style: TextStyle(
-                                    color:
-                                    AppColors.primaria,
-                                    fontSize: 15,
-                                    fontWeight:
-                                    FontWeight.w900,
-                                    letterSpacing: 1.5,
+                                  (context, error, stackTrace) =>
+                                  Image.asset(
+                                    'assets/logogimptesc.png',
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) =>
+                                    const Text(
+                                      'BOX SMART',
+                                      style: TextStyle(
+                                        color: AppColors
+                                            .primaria,
+                                        fontSize: 15,
+                                        fontWeight:
+                                        FontWeight.w900,
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
                             )
                                 : Image.asset(
                               _logoUrl,
@@ -829,12 +1017,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             tooltip: 'Meus Favoritos',
                             onPressed: () {
                               // 🌟 Se for convidado, exibe o modal convidando para logar
-                              if (widget.clienteId == 0 || widget.token.isEmpty) {
+                              if (widget.clienteId == 0 ||
+                                  widget.token.isEmpty) {
                                 showModalBottomSheet(
                                   context: context,
                                   isScrollControlled: true,
                                   backgroundColor: Colors.transparent,
-                                  builder: (context) => const ConvidadoPerfilModal(),
+                                  builder: (context) =>
+                                  const ConvidadoPerfilModal(),
                                 );
                               } else {
                                 // Se estiver logado, abre a tela de favoritos normalmente
@@ -868,7 +1058,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   color: AppColors.primaria,
                                   height: 22,
                                 ),
-                                if (_totalNotificacoesNaoLidas > 0 && widget.clienteId != 0)
+                                if (_totalNotificacoesNaoLidas > 0 &&
+                                    widget.clienteId != 0)
                                   Positioned(
                                     right: 1,
                                     top: 0,
@@ -897,12 +1088,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             onPressed: () {
                               // 🌟 Se for convidado, exibe o modal
-                              if (widget.clienteId == 0 || widget.token.isEmpty) {
+                              if (widget.clienteId == 0 ||
+                                  widget.token.isEmpty) {
                                 showModalBottomSheet(
                                   context: context,
                                   isScrollControlled: true,
                                   backgroundColor: Colors.transparent,
-                                  builder: (context) => const ConvidadoPerfilModal(),
+                                  builder: (context) =>
+                                  const ConvidadoPerfilModal(),
                                 );
                               } else {
                                 // Se estiver logado, abre as notificações
@@ -1450,7 +1643,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: PageView.builder(
                     // Zeramos o padding do PageView e ajustamos a fração para fluidez perfeita
                     controller: PageController(viewportFraction: 0.52),
-                    padEnds: false, // 👈 ESSA É A CHAVE! Impede que o PageView dê recuo automático nas pontas
+                    padEnds:
+                    false, // 👈 ESSA É A CHAVE! Impede que o PageView dê recuo automático nas pontas
                     itemCount: produtosSecao.length,
                     onPageChanged: (index) {
                       setState(() {
@@ -1462,7 +1656,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       return Container(
                         // Margem apenas leve entre os cards, sem empurrar o primeiro
                         margin: EdgeInsets.only(
-                          left: index == 0 ? 16 : 6, // 👈 O primeiro card gruda perfeitamente na margem de 16px da tela
+                          left: index == 0
+                              ? 16
+                              : 6, // 👈 O primeiro card gruda perfeitamente na margem de 16px da tela
                           right: 6,
                         ),
                         child: ProdutoCard(
@@ -1782,7 +1978,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _abrirPaginaInstitucionalDinamica(BuildContext context, String titulo, String conteudo) {
+  void _abrirPaginaInstitucionalDinamica(
+      BuildContext context,
+      String titulo,
+      String conteudo,
+      ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -1822,7 +2022,9 @@ class _HomeScreenState extends State<HomeScreen> {
             const Divider(),
             const SizedBox(height: 10),
             Text(
-              conteudo.isNotEmpty ? conteudo : 'Informações institucionais do Box Smart.',
+              conteudo.isNotEmpty
+                  ? conteudo
+                  : 'Informações institucionais do Box Smart.',
               style: const TextStyle(
                 fontSize: 14,
                 color: Colors.black87,
@@ -1840,7 +2042,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Entendido', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Entendido',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ),
           ],
@@ -1869,18 +2074,32 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.store_mall_directory_rounded, color: Colors.white, size: 32),
+              const Icon(
+                Icons.store_mall_directory_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
               const SizedBox(width: 8),
               Text(
-                widget.clienteNome.isNotEmpty ? 'Supermercado Tescarollo' : 'Supermercado Tescarollo',
-                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                widget.clienteNome.isNotEmpty
+                    ? 'Supermercado Tescarollo'
+                    : 'Supermercado Tescarollo',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 6),
           const Text(
             'Descubra o frescor de cada dia',
-            style: TextStyle(color: Colors.white70, fontSize: 13, fontStyle: FontStyle.italic),
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontStyle: FontStyle.italic,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -1889,13 +2108,25 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildSocialIcon(Icons.camera_alt, () => _lancarUrlExterna('https://instagram.com')),
+              _buildSocialIcon(
+                Icons.camera_alt,
+                    () => _lancarUrlExterna('https://instagram.com'),
+              ),
               const SizedBox(width: 12),
-              _buildSocialIcon(Icons.play_arrow_rounded, () => _lancarUrlExterna('https://youtube.com')),
+              _buildSocialIcon(
+                Icons.play_arrow_rounded,
+                    () => _lancarUrlExterna('https://youtube.com'),
+              ),
               const SizedBox(width: 12),
-              _buildSocialIcon(Icons.facebook, () => _lancarUrlExterna('https://facebook.com')),
+              _buildSocialIcon(
+                Icons.facebook,
+                    () => _lancarUrlExterna('https://facebook.com'),
+              ),
               const SizedBox(width: 12),
-              _buildSocialIcon(Icons.chat, () => _lancarUrlExterna('https://wa.me/5511932020223')),
+              _buildSocialIcon(
+                Icons.chat,
+                    () => _lancarUrlExterna('https://wa.me/5511932020223'),
+              ),
             ],
           ),
           const SizedBox(height: 32),
@@ -1903,7 +2134,11 @@ class _HomeScreenState extends State<HomeScreen> {
           // --- SEÇÃO: BAIXE NOSSO APLICATIVO ---
           const Text(
             'Baixe nosso aplicativo',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           const Text(
@@ -1918,12 +2153,24 @@ class _HomeScreenState extends State<HomeScreen> {
               Widget botoesLojas = Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildStoreButton('DISPONÍVEL NA', 'Google Play', Icons.play_arrow_rounded, () {}),
+                  _buildStoreButton(
+                    'DISPONÍVEL NA',
+                    'Google Play',
+                    Icons.play_arrow_rounded,
+                        () {},
+                  ),
                   const SizedBox(width: 12),
-                  _buildStoreButton('DISPONÍVEL NA', 'App Store', Icons.apple, () {}),
+                  _buildStoreButton(
+                    'DISPONÍVEL NA',
+                    'App Store',
+                    Icons.apple,
+                        () {},
+                  ),
                 ],
               );
-              return isDesktop ? SizedBox(width: 450, child: botoesLojas) : botoesLojas;
+              return isDesktop
+                  ? SizedBox(width: 450, child: botoesLojas)
+                  : botoesLojas;
             },
           ),
           const SizedBox(height: 32),
@@ -1936,10 +2183,34 @@ class _HomeScreenState extends State<HomeScreen> {
             spacing: 20,
             runSpacing: 10,
             children: [
-              _buildLinkAtendimento('Contato', () => _lancarUrlExterna('https://wa.me/5511932020223')),
-              _buildLinkAtendimento('Atendimento ao titular LGPD', () => _abrirPaginaInstitucionalDinamica(context, 'LGPD', 'Seus dados protegidos com total transparência.')),
-              _buildLinkAtendimento('Perguntas Frequentes', () => _abrirPaginaInstitucionalDinamica(context, 'FAQ', 'Tire suas dúvidas sobre entregas, pagamentos e o clube de vantagens.')),
-              _buildLinkAtendimento('Política de Privacidade', () => _abrirPaginaInstitucionalDinamica(context, 'Privacidadee', 'Compromisso com a segurança da sua privacidade.')),
+              _buildLinkAtendimento(
+                'Contato',
+                    () => _lancarUrlExterna('https://wa.me/5511932020223'),
+              ),
+              _buildLinkAtendimento(
+                'Atendimento ao titular LGPD',
+                    () => _abrirPaginaInstitucionalDinamica(
+                  context,
+                  'LGPD',
+                  'Seus dados protegidos com total transparência.',
+                ),
+              ),
+              _buildLinkAtendimento(
+                'Perguntas Frequentes',
+                    () => _abrirPaginaInstitucionalDinamica(
+                  context,
+                  'FAQ',
+                  'Tire suas dúvidas sobre entregas, pagamentos e o clube de vantagens.',
+                ),
+              ),
+              _buildLinkAtendimento(
+                'Política de Privacidade',
+                    () => _abrirPaginaInstitucionalDinamica(
+                  context,
+                  'Privacidadee',
+                  'Compromisso com a segurança da sua privacidade.',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -1976,7 +2247,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStoreButton(String subtitle, String title, IconData icon, VoidCallback onTap) {
+  Widget _buildStoreButton(
+      String subtitle,
+      String title,
+      IconData icon,
+      VoidCallback onTap,
+      ) {
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -1995,8 +2271,22 @@ class _HomeScreenState extends State<HomeScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(subtitle, style: const TextStyle(fontSize: 8, color: Colors.white60, fontWeight: FontWeight.bold)),
-                  Text(title, style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 8,
+                      color: Colors.white60,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -2011,7 +2301,12 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: onTap,
       child: Text(
         texto,
-        style: const TextStyle(color: Colors.white70, fontSize: 12, decoration: TextDecoration.underline, decorationColor: Colors.white30),
+        style: const TextStyle(
+          color: Colors.white70,
+          fontSize: 12,
+          decoration: TextDecoration.underline,
+          decorationColor: Colors.white30,
+        ),
       ),
     );
   }
@@ -2032,22 +2327,36 @@ class _HomeScreenState extends State<HomeScreen> {
               : _buildLogoDefaultFooter(),
           const SizedBox(height: 12),
           Text(
-            _footerData['subtitulo'] ?? 'Soluções inteligentes para organização e gestão de espaços.',
-            style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+            _footerData['subtitulo'] ??
+                'Soluções inteligentes para organização e gestão de espaços.',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 20),
           Row(
             children: [
               if (redesSociais['whatsapp'] != null)
-                _buildSocialIcon(Icons.phone, () => _lancarUrlExterna(redesSociais['whatsapp'])),
+                _buildSocialIcon(
+                  Icons.phone,
+                      () => _lancarUrlExterna(redesSociais['whatsapp']),
+                ),
               if (redesSociais['whatsapp'] != null) const SizedBox(width: 12),
 
               if (redesSociais['instagram'] != null)
-                _buildSocialIcon(Icons.camera_alt, () => _lancarUrlExterna(redesSociais['instagram'])),
+                _buildSocialIcon(
+                  Icons.camera_alt,
+                      () => _lancarUrlExterna(redesSociais['instagram']),
+                ),
               if (redesSociais['instagram'] != null) const SizedBox(width: 12),
 
               if (redesSociais['facebook'] != null)
-                _buildSocialIcon(Icons.facebook, () => _lancarUrlExterna(redesSociais['facebook'])),
+                _buildSocialIcon(
+                  Icons.facebook,
+                      () => _lancarUrlExterna(redesSociais['facebook']),
+                ),
             ],
           ),
         ],
@@ -2092,7 +2401,11 @@ class _HomeScreenState extends State<HomeScreen> {
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: InkWell(
-              onTap: () => _abrirPaginaInstitucionalDinamica(context, nomeItem, conteudoItem),
+              onTap: () => _abrirPaginaInstitucionalDinamica(
+                context,
+                nomeItem,
+                conteudoItem,
+              ),
               child: Text(
                 nomeItem,
                 style: const TextStyle(

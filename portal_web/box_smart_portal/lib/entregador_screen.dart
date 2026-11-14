@@ -165,7 +165,8 @@ class _EntregadorScreenState extends State<EntregadorScreen>
         await _carregarPedidos();
 
         // 🌟 SE INICIOU A ROTA, MOVE O ENTREGADOR AUTOMATICAMENTE PARA A ABA 1 ("Em Rota")
-        if ((novoStatus == 'SAIU_PARA_ENTREGA' || novoStatus == 'EM_TRANSITO') && mounted) {
+        if ((novoStatus == 'SAIU_PARA_ENTREGA' || novoStatus == 'EM_TRANSITO') &&
+            mounted) {
           setState(() {
             _tabController.index = 1; // Vai direto para a aba "Em Rota"
           });
@@ -282,184 +283,188 @@ class _EntregadorScreenState extends State<EntregadorScreen>
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateModal) {
-            return Padding(
-              padding: EdgeInsets.only(
-                top: 20,
-                left: 20,
-                right: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Finalizar Entrega #$pedidoId',
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A)),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  const Divider(),
-                  const SizedBox(height: 10),
-
-                  if (!estaPago) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFF59E0B)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.payments,
-                                  color: Color(0xFFD97706)),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Cobrar do Cliente: ${_formatoMoeda.format(valorTotal)}',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF92400E),
-                                      fontSize: 15),
+            return SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  top: 20,
+                  left: 20,
+                  right: 20,
+                  bottom: MediaQuery.of(context).viewInsets.bottom +
+                      MediaQuery.of(context).padding.bottom +
+                      28,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Finalizar Entrega #$pedidoId',
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 10),
+                    if (!estaPago) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFF59E0B)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.payments,
+                                    color: Color(0xFFD97706)),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Cobrar do Cliente: ${_formatoMoeda.format(valorTotal)}',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF92400E),
+                                        fontSize: 15),
+                                  ),
                                 ),
+                              ],
+                            ),
+                            if (trocoPara > 0) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                '• Forma: $formaPagamento',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFFB45309),
+                                    fontWeight: FontWeight.w500),
+                              ),
+                              Text(
+                                '• Troco recebido para: ${_formatoMoeda.format(trocoPara)}',
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFFB45309),
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                '• Entregar de troco: ${_formatoMoeda.format(trocoALevar)}',
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFFB45309),
+                                    fontWeight: FontWeight.bold),
                               ),
                             ],
-                          ),
-                          if (trocoPara > 0) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              '• Forma: $formaPagamento',
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFFB45309),
-                                  fontWeight: FontWeight.w500),
-                            ),
-                            Text(
-                              '• Troco recebido para: ${_formatoMoeda.format(trocoPara)}',
-                              style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xFFB45309),
-                                  fontWeight: FontWeight.w600),
-                            ),
-                            Text(
-                              '• Entregar de troco: ${_formatoMoeda.format(trocoALevar)}',
-                              style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xFFB45309),
-                                  fontWeight: FontWeight.bold),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          'Confirmo que recebi o valor e entreguei o troco (se houver)',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        value: cobrancaConferida,
+                        onChanged: (val) => setStateModal(
+                                () => cobrancaConferida = val ?? false),
+                      ),
+                      const SizedBox(height: 12),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF22C55E)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Color(0xFF15803D)),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Pedido pago via Aplicativo. Não cobrar do cliente.',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF14532D),
+                                    fontSize: 14),
+                              ),
                             ),
                           ],
-                        ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    const Text(
+                      'Código de Confirmação / OTP (Opcional):',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF334155)),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: otpController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      decoration: InputDecoration(
+                        hintText: 'Ex: 4821',
+                        prefixIcon: const Icon(Icons.pin),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        counterText: '',
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text(
-                        'Confirmo que recebi o valor e entreguei o troco (se houver)',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                      value: cobrancaConferida,
-                      onChanged: (val) =>
-                          setStateModal(() => cobrancaConferida = val ?? false),
-                    ),
-                    const SizedBox(height: 12),
-                  ] else ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDCFCE7),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF22C55E)),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Color(0xFF15803D)),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Pedido pago via Aplicativo. Não cobrar do cliente.',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF14532D),
-                                  fontSize: 14),
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF059669),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon:
+                        const Icon(Icons.check_circle, color: Colors.white),
+                        label: const Text(
+                          'CONFIRMAR E FINALIZAR',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
+                        ),
+                        onPressed: !cobrancaConferida
+                            ? null
+                            : () {
+                          Navigator.pop(context);
+                          _atualizarStatus(
+                            pedidoId,
+                            'ENTREGUE',
+                            codigoOtp:
+                            otpController.text.trim().isNotEmpty
+                                ? otpController.text.trim()
+                                : null,
+                          );
+                        },
                       ),
                     ),
-                    const SizedBox(height: 16),
                   ],
-
-                  const Text(
-                    'Código de Confirmação / OTP (Opcional):',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF334155)),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: otpController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    decoration: InputDecoration(
-                      hintText: 'Ex: 4821',
-                      prefixIcon: const Icon(Icons.pin),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      counterText: '',
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF059669),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      icon: const Icon(Icons.check_circle, color: Colors.white),
-                      label: const Text(
-                        'CONFIRMAR E FINALIZAR',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white),
-                      ),
-                      onPressed: !cobrancaConferida
-                          ? null
-                          : () {
-                        Navigator.pop(context);
-                        _atualizarStatus(
-                          pedidoId,
-                          'ENTREGUE',
-                          codigoOtp: otpController.text.trim().isNotEmpty
-                              ? otpController.text.trim()
-                              : null,
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
           },
@@ -728,23 +733,27 @@ class _EntregadorScreenState extends State<EntregadorScreen>
           ],
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          _buildCardGestaoFinanceira(),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildListaAba(_pedidosParaColetar, statusAba: 'COLETAR'),
-                _buildListaAba(_pedidosEmRota, statusAba: 'ROTA'),
-                _buildListaAba(_pedidosConcluidos,
-                    statusAba: 'CONCLUIDAS'),
-              ],
+      body: SafeArea(
+        top: false,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+          children: [
+            _buildCardGestaoFinanceira(),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildListaAba(_pedidosParaColetar,
+                      statusAba: 'COLETAR'),
+                  _buildListaAba(_pedidosEmRota, statusAba: 'ROTA'),
+                  _buildListaAba(_pedidosConcluidos,
+                      statusAba: 'CONCLUIDAS'),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -811,7 +820,12 @@ class _EntregadorScreenState extends State<EntregadorScreen>
     return RefreshIndicator(
       onRefresh: _carregarPedidos,
       child: ListView.builder(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.fromLTRB(
+          12,
+          12,
+          12,
+          MediaQuery.of(context).padding.bottom + 80,
+        ),
         itemCount: lista.length,
         itemBuilder: (context, index) {
           return _buildCardPedidoOtimizado(lista[index], statusAba: statusAba);
@@ -1029,9 +1043,7 @@ class _EntregadorScreenState extends State<EntregadorScreen>
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 14),
-
                   Row(
                     children: [
                       const Icon(Icons.person, size: 18, color: Colors.grey),
@@ -1078,9 +1090,7 @@ class _EntregadorScreenState extends State<EntregadorScreen>
                       ],
                     ],
                   ),
-
                   const SizedBox(height: 12),
-
                   Text('Endereço de Entrega:',
                       style: TextStyle(
                           fontSize: 12,
@@ -1091,7 +1101,6 @@ class _EntregadorScreenState extends State<EntregadorScreen>
                       style: const TextStyle(
                           fontSize: 14, color: Color(0xFF334155), height: 1.3)),
                   const SizedBox(height: 10),
-
                   SizedBox(
                     width: double.infinity,
                     height: 46,
@@ -1109,13 +1118,9 @@ class _EntregadorScreenState extends State<EntregadorScreen>
                       onPressed: () => _abrirNavegacaoRota(endereco),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   _buildTimelineWidget(pedido),
-
                   const SizedBox(height: 16),
-
                   Text('Itens do Pedido (${itens.length}):',
                       style: TextStyle(
                           fontSize: 12,
@@ -1123,13 +1128,18 @@ class _EntregadorScreenState extends State<EntregadorScreen>
                           color: Colors.grey.shade600)),
                   const SizedBox(height: 4),
                   ...itens.map((item) {
-                    final String nomeProd = item['nome'] ?? item['nome_produto'] ?? 'Produto';
+                    final String nomeProd =
+                        item['nome'] ?? item['nome_produto'] ?? 'Produto';
 
                     // 🌟 CORREÇÃO FEITA AQUI: Lê como double e formata para suportar pesáveis (ex: 0.5 kg)
-                    final double qtd = (item['quantidade'] as num?)?.toDouble() ?? 1.0;
+                    final double qtd =
+                        (item['quantidade'] as num?)?.toDouble() ?? 1.0;
                     final String qtdStr = qtd % 1 == 0
                         ? qtd.toInt().toString()
-                        : qtd.toStringAsFixed(3).replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
+                        : qtd
+                        .toStringAsFixed(3)
+                        .replaceAll(RegExp(r'0*$'), '')
+                        .replaceAll(RegExp(r'\.$'), '');
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2.0),
@@ -1138,11 +1148,9 @@ class _EntregadorScreenState extends State<EntregadorScreen>
                               fontSize: 13, color: Color(0xFF334155))),
                     );
                   }).toList(),
-
                   const SizedBox(height: 16),
                   const Divider(height: 1),
                   const SizedBox(height: 12),
-
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
@@ -1198,9 +1206,7 @@ class _EntregadorScreenState extends State<EntregadorScreen>
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   if (statusAba == 'COLETAR')
                     SizedBox(
                       width: double.infinity,
@@ -1222,7 +1228,6 @@ class _EntregadorScreenState extends State<EntregadorScreen>
                             _atualizarStatus(id, 'SAIU_PARA_ENTREGA'),
                       ),
                     ),
-
                   if (statusAba == 'ROTA')
                     SizedBox(
                       width: double.infinity,
