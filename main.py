@@ -3224,7 +3224,16 @@ def enviar_notificacao_churn(
 # 📂 ROTA DE CADASTRO DO APP CLIENTE
 # ==========================================
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import os
+import secrets
+from datetime import datetime, timedelta
+import resend
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import Session
+
+# Inicializa o Resend com a chave das variáveis de ambiente do Render
+resend.api_key = os.environ.get("RESEND_API_KEY")
 
 router_auth = APIRouter(prefix="/auth", tags=["Autenticação"])
 
@@ -3236,59 +3245,32 @@ class RedefinirSenhaRequest(BaseModel):
     token: str
     nova_senha: str
 
-import os
-import resend
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-import secrets
-
-# Inicializa o Resend com a chave das variáveis de ambiente do Render
-resend.api_key = os.environ.get("RESEND_API_KEY")
-
-router_auth = APIRouter(prefix="/auth", tags=["Autenticação"])
-
 @router_auth.post("/esqueci-senha")
 def esqueci_senha(dados: RecuperarSenhaRequest, db: Session = Depends(get_db)):
     # 1. Buscar o cliente pelo e-mail no banco de dados
     cliente = db.query(Cliente).filter(Cliente.email == dados.email).first()
-    
-    # Por segurança, mesmo se o e-mail não existir, retornamos sucesso para evitar enumeração
+
     if not cliente:
         return {"mensagem": "Se o e-mail estiver cadastrado, as instruções foram enviadas."}
-    
-    
-class RedefinirSenhaRequest(BaseModel):
-    email: str
-    token: str
-    nova_senha: str
 
-@router_auth.post("/esqueci-senha/confirmar") # ou "/esqueci-senha/resetar"
-def confirmar_redefinicao_senha(dados: RedefinirSenhaRequest, db: Session = Depends(get_db)):
-    cliente = db.query(Cliente).filter(Cliente.email == dados.email).first()
-    if not cliente:
-        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
-    
-    # Aqui você valida se o token confere com o salvo no banco e se não expirou.
-    # Exemplo simples de atualização da senha com hash:
-    cliente.senha_hash = security.obter_hash_senha(dados.nova_senha)
-    db.commit()
-    
-    return {"mensagem": "Senha redefinida com sucesso!"}
-
-    # 2. Gerar token temporário (4 caracteres/dígitos) e tempo de expiração (15 minutos)
-    token = secrets.token_hex(4).upper() # Ex: A3F2
+    # 2. Gerar token temporário (6 caracteres/dígitos) e tempo de expiração (15 minutos)
+    token = secrets.token_hex(3).upper()  # Ex: A3F29C
     expiracao = datetime.utcnow() + timedelta(minutes=15)
 
-    # 3. Salvar no banco Neon
+    # 3. Salvar no banco
     cliente.reset_token = token
     cliente.reset_token_expires = expiracao
     db.commit()
 
     # 4. Enviar o e-mail utilizando o Resend
+    if not resend.api_key:
+        print("❌ RESEND_API_KEY não configurada nas variáveis de ambiente do Render.")
+        return {"mensagem": "Código gerado, mas o serviço de e-mail não está configurado."}
+
     try:
+        remetente = os.environ.get("EMAIL_REMETENTE", "Box Smart <onboarding@resend.dev>")
         params = {
-            "from": "Box Smart <onboarding@resend.dev>", # (Depois você pode trocar pelo seu domínio verificado no Resend)
+            "from": remetente,
             "to": [cliente.email],
             "subject": "Código de Recuperação de Senha - Box Smart",
             "html": f"""
@@ -3305,15 +3287,37 @@ def confirmar_redefinicao_senha(dados: RedefinirSenhaRequest, db: Session = Depe
                 </div>
             """,
         }
-        
+
         email_response = resend.Emails.send(params)
         print(f"📧 E-mail de recuperação enviado com sucesso para {cliente.email}. Resposta: {email_response}")
 
     except Exception as e:
         print(f"❌ Erro ao enviar e-mail via Resend: {e}")
-        # Mesmo se houver falha no disparo do e-mail, por segurança mantemos o fluxo sem travar o cliente bruscamente
-    
+
     return {"mensagem": "Código de recuperação enviado com sucesso!"}
+
+
+@router_auth.post("/esqueci-senha/confirmar")
+@router_auth.post("/esqueci-senha/resetar")
+def confirmar_redefinicao_senha(dados: RedefinirSenhaRequest, db: Session = Depends(get_db)):
+    cliente = db.query(Cliente).filter(Cliente.email == dados.email).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+
+    # Valida código e expiração
+    if not cliente.reset_token or cliente.reset_token.upper() != dados.token.strip().upper():
+        raise HTTPException(status_code=400, detail="Código de recuperação inválido.")
+
+    if cliente.reset_token_expires and datetime.utcnow() > cliente.reset_token_expires:
+        raise HTTPException(status_code=400, detail="Código expirado. Solicite um novo código.")
+
+    # Atualiza a senha com hash e limpa o token usado
+    cliente.senha_hash = security.gerar_hash_senha(dados.nova_senha)
+    cliente.reset_token = None
+    cliente.reset_token_expires = None
+    db.commit()
+
+    return {"mensagem": "Senha redefinida com sucesso!"}
 
 # 🌟 3. REGISTRO OBRIGATÓRIO DO ROUTER NO APP PRINCIPAL
 # Certifique-se de que 'app' é a sua instância principal (app = FastAPI())
