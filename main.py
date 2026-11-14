@@ -3299,6 +3299,8 @@ def esqueci_senha(dados: RecuperarSenhaRequest, db: Session = Depends(get_db)):
 
 @router_auth.post("/esqueci-senha/confirmar")
 @router_auth.post("/esqueci-senha/resetar")
+@router_auth.post("/redefinir-senha")
+@router_auth.post("/resetar-senha")
 def confirmar_redefinicao_senha(dados: RedefinirSenhaRequest, db: Session = Depends(get_db)):
     cliente = db.query(Cliente).filter(Cliente.email == dados.email).first()
     if not cliente:
@@ -3319,9 +3321,11 @@ def confirmar_redefinicao_senha(dados: RedefinirSenhaRequest, db: Session = Depe
 
     return {"mensagem": "Senha redefinida com sucesso!"}
 
+app.include_router(router_auth)
+
 # 🌟 3. REGISTRO OBRIGATÓRIO DO ROUTER NO APP PRINCIPAL
 # Certifique-se de que 'app' é a sua instância principal (app = FastAPI())
-app.include_router(router_auth)
+
 
 # 👇 1. Rota de ping para manter o servidor acordado
 @app.get("/api/ping")
