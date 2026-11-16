@@ -449,7 +449,7 @@ async def lifespan(app: FastAPI):
     # 2. Agendamento da Carga Expressa (A cada 15 minutos durante o dia)
     scheduler.add_job(
         rotina_carga_expressa,
-        IntervalTrigger(hours=1),
+        IntervalTrigger(hours=4),
         id="sync_expressa_estoque",
         replace_existing=True
     )
