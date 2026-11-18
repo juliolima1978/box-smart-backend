@@ -36,6 +36,7 @@ from models import Pedido, Produto, ItemPedido, Categoria, Favorito, Endereco, C
 from treinar_recomendacao import treinar_motor_recomendacao
 from routers.frete import router as frete_router
 from sqlalchemy import text # Importante para rodar SQL bruto
+import math
 
 
 # Tenta importar o cliente WebSac (deve existir websac_client.py no projeto)
@@ -631,7 +632,7 @@ class FooterConfig(BaseModel):
     privacidade_url: Optional[str] = "https://boxsmart.com.br/privacidade"
 
 CONFIG_APP_CACHE = {
-    "logo_url": "https://i.imgur.com/6tJyuYb.png",
+    "logo_url": "https://i.imgur.com/UPl441e.png",
     "footer": {
         "slogan": "Descubra o frescor de cada dia",
         "texto_copyright": "© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados.",
@@ -1964,26 +1965,108 @@ endereco_router = APIRouter(prefix="/api/enderecos", tags=["Endereços"])
 app.include_router(frete_router)
 app.include_router(endereco_router)
 
+
+
+
+# 📍 Coordenadas do Supermercado Tescarollo (Itatiba - SP) — ajuste para o ponto exato da loja
+LOJA_LAT = -23.0058
+LOJA_LNG = -46.8389
+RAIO_MAXIMO_KM = 16.0
+
+FERIADOS_FIXOS = {
+    (1, 1),   # Confraternização Universal
+    (4, 21),  # Tiradentes
+    (5, 1),   # Dia do Trabalho
+    (9, 7),   # Independência
+    (10, 12), # Nossa Senhora Aparecida
+    (11, 2),  # Finados
+    (11, 15), # Proclamação da República
+    (11, 20), # Consciência Negra
+    (12, 25), # Natal
+}
+
+FERIADOS_ESPECIFICOS = {
+    "2026-04-03", # Sexta-feira Santa
+    "2026-06-04", # Corpus Christi
+    "2026-11-01", # Aniversário de Itatiba (ajuste se necessário)
+}
+
+def calcular_distancia_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    raio_terra = 6371.0
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(d_lon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return round(raio_terra * c, 2)
+
+def eh_dia_util_delivery(data_verificar: date) -> bool:
+    # 6 = Domingo (Segunda=0 ... Sábado=5)
+    if data_verificar.weekday() == 6:
+        return False
+    if (data_verificar.month, data_verificar.day) in FERIADOS_FIXOS:
+        return False
+    if data_verificar.strftime("%Y-%m-%d") in FERIADOS_ESPECIFICOS:
+        return False
+    return True
+
+def calcular_previsao_entrega() -> dict:
+    agora = agora_brasilia()
+    hoje = agora.date()
+
+    # Delivery funciona Seg a Sáb das 08:00 às 13:00 (pedidos até às 13:00 saem hoje)
+    dentro_do_horario = eh_dia_util_delivery(hoje) and (agora.hour < 13)
+
+    if dentro_do_horario:
+        data_entrega = hoje
+        mensagem = "Entrega hoje (pedidos realizados de Seg. a Sáb. até às 13:00)."
+    else:
+        data_entrega = hoje + timedelta(days=1)
+        while not eh_dia_util_delivery(data_entrega):
+            data_entrega += timedelta(days=1)
+
+        dias_semana = [
+            "Segunda-feira", "Terça-feira", "Quarta-feira",
+            "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"
+        ]
+        nome_dia = dias_semana[data_entrega.weekday()]
+        data_fmt = data_entrega.strftime("%d/%m")
+
+        if data_entrega == hoje + timedelta(days=1):
+            mensagem = f"Compras após às 13:00 são entregues no próximo dia útil: amanhã ({nome_dia}, {data_fmt}) das 08:00 às 13:00."
+        else:
+            mensagem = f"Não realizamos delivery aos domingos e feriados. Seu pedido será entregue na próxima {nome_dia} ({data_fmt}) das 08:00 às 13:00."
+
+    return {
+        "entrega_hoje": dentro_do_horario,
+        "data_prevista": data_entrega.strftime("%Y-%m-%d"),
+        "data_prevista_br": data_entrega.strftime("%d/%m/%Y"),
+        "horario_funcionamento": "Segunda a Sábado, das 08:00 às 13:00",
+        "raio_maximo_km": RAIO_MAXIMO_KM,
+        "mensagem_aviso": mensagem,
+    }
+
 def buscar_lat_long_nominatim(rua: str, numero: str, cidade: str, estado: str, cep: str):
     """Consulta a API do Nominatim com múltiplas estratégias de fallback."""
     url = "https://nominatim.openstreetmap.org/search"
     headers = {'User-Agent': 'BoxSmartApp/1.0 (contato@boxsmart.com)'}
     
-    # Lista de tentativas em ordem de precisão (da mais específica para a mais genérica)
     queries = [
-        f"{rua}, {numero}, {cidade} - {estado}, {cep}, Brasil",  # 1. Endereço completo
-        f"{rua}, {cidade} - {estado}, {cep}, Brasil",            # 2. Sem o número da casa
-        f"{cep}, {cidade} - {estado}, Brasil",                 # 3. Apenas por CEP e cidade
-        f"{cep}, Brasil"                                       # 4. Apenas pelo CEP global
+        q for q in [
+            f"{rua}, {numero}, {cidade} - {estado}, {cep}, Brasil" if rua and cidade else None,
+            f"{rua}, {cidade} - {estado}, {cep}, Brasil" if rua and cidade else None,
+            f"{cep}, {cidade} - {estado}, Brasil" if cep and cidade else None,
+            f"{cep}, Brasil" if cep else None,
+            f"{rua}, {cidade}, Brasil" if rua and cidade else None,
+        ] if q
     ]
     
     for query in queries:
-        params = {
-            'q': query,
-            'format': 'json',
-            'limit': 1
-        }
-        
+        params = {'q': query, 'format': 'json', 'limit': 1}
         try:
             response = requests.get(url, params=params, headers=headers, timeout=5)
             if response.status_code == 200:
@@ -1997,6 +2080,76 @@ def buscar_lat_long_nominatim(rua: str, numero: str, cidade: str, estado: str, c
             print(f"[GEOCODING ERROR] Erro na tentativa com '{query}': {e}")
             
     return None, None
+
+def validar_raio_entrega(endereco_texto: str = "", cep: str = "", lat: float = None, lng: float = None) -> dict:
+    # 1. Se coordenadas foram enviadas diretamente pelo app
+    if lat is not None and lng is not None:
+        dist = calcular_distancia_km(LOJA_LAT, LOJA_LNG, float(lat), float(lng))
+        return {
+            "atendido": dist <= RAIO_MAXIMO_KM,
+            "distancia_km": dist,
+            "raio_maximo_km": RAIO_MAXIMO_KM,
+            "mensagem": (
+                f"Endereço dentro da área de entrega ({dist} km)."
+                if dist <= RAIO_MAXIMO_KM
+                else f"Endereço fora da área de cobertura ({dist} km). Atendemos em um raio máximo de {int(RAIO_MAXIMO_KM)} km."
+            )
+        }
+
+    # 2. Extrai CEP do texto do endereço caso não tenha sido enviado separado
+    cep_limpo = "".join(filter(str.isdigit, cep or ""))
+    if len(cep_limpo) != 8 and endereco_texto:
+        match_cep = re.search(r"\b\d{5}-?\d{3}\b", endereco_texto)
+        if match_cep:
+            cep_limpo = match_cep.group(0).replace("-", "")
+
+    rua, numero, cidade, estado = "", "", "Itatiba", "SP"
+    if len(cep_limpo) == 8:
+        try:
+            via_cep = requests.get(f"https://viacep.com.br/ws/{cep_limpo}/json/", timeout=5).json()
+            if not via_cep.get("erro"):
+                rua = via_cep.get("logradouro", "")
+                cidade = via_cep.get("localidade", "Itatiba")
+                estado = via_cep.get("uf", "SP")
+        except Exception:
+            pass
+    elif endereco_texto:
+        rua = endereco_texto
+
+    lat_dest, lng_dest = buscar_lat_long_nominatim(rua, numero, cidade, estado, cep_limpo)
+    if lat_dest is not None and lng_dest is not None:
+        dist = calcular_distancia_km(LOJA_LAT, LOJA_LNG, lat_dest, lng_dest)
+        return {
+            "atendido": dist <= RAIO_MAXIMO_KM,
+            "distancia_km": dist,
+            "raio_maximo_km": RAIO_MAXIMO_KM,
+            "mensagem": (
+                f"Endereço dentro da área de entrega ({dist} km)."
+                if dist <= RAIO_MAXIMO_KM
+                else f"Endereço fora da área de cobertura ({dist} km). Atendemos em um raio máximo de {int(RAIO_MAXIMO_KM)} km."
+            )
+        }
+
+    # Se o endereço não pôde ser geocodificado, não bloqueia indevidamente caso não haja coordenadas
+    return {
+        "atendido": True,
+        "distancia_km": None,
+        "raio_maximo_km": RAIO_MAXIMO_KM,
+        "mensagem": "Não foi possível calcular a distância exata, sujeito à validação de raio de 16 km."
+    }
+
+@app.get("/api/delivery/regras")
+@app.get("/api/delivery/status")
+def obter_regras_delivery(cep: Optional[str] = None, endereco: Optional[str] = None, lat: Optional[float] = None, lng: Optional[float] = None):
+    info = calcular_previsao_entrega()
+    if cep or endereco or (lat is not None and lng is not None):
+        info["cobertura"] = validar_raio_entrega(
+            endereco_texto=endereco or "",
+            cep=cep or "",
+            lat=lat,
+            lng=lng
+        )
+    return info
 
 @app.post("/pedidos/", status_code=status.HTTP_201_CREATED)
 @app.post("/pedidos", status_code=status.HTTP_201_CREATED)
@@ -2024,7 +2177,6 @@ async def criar_pedido(
             subtotal=subtotal,
             cliente_id=current_user.id
         )
-        # Recalcula o total final garantindo que o desconto aplicado é o oficial do cupom
         valor_total = max(0.0, round((subtotal - desconto_cupom_real) + taxa_entrega, 2))
 
     endereco_req = payload.get('endereco_entrega', None)
@@ -2032,6 +2184,28 @@ async def criar_pedido(
         endereco_req.strip() if (endereco_req and endereco_req.strip())
         else (obter_endereco_formatado_cliente(current_user) or "Endereço não informado")
     )
+
+    # 🛡️ 1. VALIDAÇÃO DO RAIO DE 16 KM (ignora apenas se for retirada na loja)
+    eh_retirada = "retirada" in end_entrega.lower() or payload.get("tipo_entrega") == "retirada"
+    if not eh_retirada and end_entrega != "Endereço não informado":
+        cobertura = validar_raio_entrega(
+            endereco_texto=end_entrega,
+            cep=str(payload.get('cep') or ""),
+            lat=payload.get('latitude'),
+            lng=payload.get('longitude')
+        )
+        if not cobertura["atendido"]:
+            raise HTTPException(
+                status_code=400,
+                detail=cobertura["mensagem"]
+            )
+
+    # 🕒 2. CALCULA PREVISÃO DE ENTREGA (Seg-Sáb 08h-13h, sem domingos/feriados)
+    previsao = calcular_previsao_entrega()
+    if not eh_retirada:
+        tag_previsao = f" [Entrega prevista: {previsao['data_prevista_br']} (08h às 13h)]"
+        if tag_previsao not in end_entrega:
+            end_entrega = f"{end_entrega}{tag_previsao}"
 
     forma_pag = payload.get('forma_pagamento', None) or "Dinheiro na Entrega"
     troco = float(payload.get('troco_para') or 0.0)
@@ -2058,7 +2232,6 @@ async def criar_pedido(
     db.commit()
     db.refresh(novo_pedido)
 
-    # Dá baixa definitiva no cupom e vincula ao cliente e pedido
     if cupom_obj:
         cupom_obj.usos_atuais = (cupom_obj.usos_atuais or 0) + 1
         registro_uso = models.CupomUso(
@@ -2086,7 +2259,7 @@ async def criar_pedido(
         enviar_notificacao_push(
             fcm_token=current_user.fcm_token,
             titulo="Pedido Recebido com Sucesso! 🛒",
-            corpo=f"Olá {current_user.nome}, seu pedido #{novo_pedido.id} foi recebido e já está em processamento.",
+            corpo=f"Olá {current_user.nome}, seu pedido #{novo_pedido.id} foi recebido. {previsao['mensagem_aviso']}",
             dados_extra={"pedido_id": str(novo_pedido.id), "status": "PENDENTE"}
         )
 
