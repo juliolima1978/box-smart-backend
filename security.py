@@ -8,7 +8,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 SECRET_KEY = "box_smart_super_secret_key_e_commerce_fidelidade"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
 
 def verificar_senha(senha_pura: str, senha_hash: str) -> bool:
     try:
