@@ -2278,6 +2278,158 @@ async def criar_pedido(
 
     return novo_pedido
 
+@app.get("/admin/pedidos")
+@app.get("/admin/pedidos/")
+def listar_pedidos_admin(status: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(Pedido).options(
+        joinedload(Pedido.cliente).joinedload(models.Cliente.enderecos),
+        joinedload(Pedido.itens).joinedload(models.ItemPedido.produto).joinedload(models.Produto.categoria)
+    )
+    
+    if status and status.strip() != "" and status.lower() != "todos":
+        query = query.filter(func.lower(Pedido.status) == status.strip().lower())
+    
+    pedidos = query.order_by(Pedido.data_criacao.desc()).all()
+    
+    resultado = []
+    for p in pedidos:
+        itens_lista = []
+        for item in getattr(p, 'itens', []):
+            cat_nome = "Mercearia / Geral"
+            if item.produto and getattr(item.produto, 'categoria', None):
+                cat_nome = item.produto.categoria.nome
+
+            itens_lista.append({
+                "id": item.id,
+                "produto_id": item.produto_id,
+                "nome": item.produto.nome if item.produto else "Produto",
+                "quantidade": item.quantidade,
+                "preco_unitario": float(item.preco_unitario if item.preco_unitario is not None else 0.0),
+                "observacao_corte": getattr(item, 'observacao_corte', None),
+                "imagem_url": getattr(item.produto, 'imagem_url', None) if item.produto else None,
+                "categoria_nome": cat_nome,
+                "categoria": cat_nome
+            })
+
+        cliente_info = None
+        if p.cliente:
+            cliente_info = {
+                "id": p.cliente.id,
+                "nome": p.cliente.nome,
+                "email": p.cliente.email,
+                "telefone": getattr(p.cliente, 'telefone', None),
+                "endereco": obter_endereco_formatado_cliente(p.cliente)
+            }
+
+        end_entrega = getattr(p, 'endereco_entrega', None)
+        if not end_entrega or end_entrega == "Endereço não informado":
+            end_entrega = obter_endereco_formatado_cliente(p.cliente) or "Endereço não informado"
+
+        resultado.append({
+            "id": p.id,
+            "cliente_id": p.cliente_id,
+            "cliente": cliente_info,
+            "cliente_nome": p.cliente.nome if p.cliente else "Cliente Balcão",
+            "eh_membro_clube": getattr(p, 'eh_membro_clube', False),
+            "subtotal": float(p.subtotal if p.subtotal is not None else 0.0),
+            "taxa_entrega": float(p.taxa_entrega if p.taxa_entrega is not None else 0.0),
+            "total": float(p.total if p.total is not None else 0.0),
+            "valor_total": float(p.total if p.total is not None else 0.0),
+            "status": p.status,
+            "forma_pagamento": getattr(p, 'forma_pagamento', None) or "Dinheiro na Entrega",
+            "troco_para": float(getattr(p, 'troco_para', 0.0) or 0.0),
+            "esta_pago": bool(getattr(p, 'esta_pago', False)),
+            "separado_por": getattr(p, 'separado_por', None) or "Aguardando separação",
+            "separador_id": getattr(p, 'separador_id', None),
+            "entregador_id": getattr(p, 'entregador_id', None),
+            "entregador_nome": getattr(p, 'entregador_nome', None) or "Pendente de atribuição",
+            "endereco_entrega": end_entrega,
+            "data_criacao": p.data_criacao.isoformat() if getattr(p, 'data_criacao', None) else None,
+            "data_separado": getattr(p, 'data_separado', None).isoformat() if getattr(p, 'data_separado', None) else None,
+            "data_inicio_separacao": getattr(p, 'data_inicio_separacao', None).isoformat() if getattr(p, 'data_inicio_separacao', None) else None,
+            "data_saiu_entrega": getattr(p, 'data_saiu_entrega', None).isoformat() if getattr(p, 'data_saiu_entrega', None) else None,
+            "data_concluido": getattr(p, 'data_concluido', None).isoformat() if getattr(p, 'data_concluido', None) else None,
+            "itens": itens_lista
+        })
+        
+    return resultado
+
+@app.get("/admin/pedidos")
+@app.get("/admin/pedidos/")
+def listar_pedidos_admin(status: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(Pedido).options(
+        joinedload(Pedido.cliente).joinedload(models.Cliente.enderecos),
+        joinedload(Pedido.itens).joinedload(models.ItemPedido.produto).joinedload(models.Produto.categoria)
+    )
+    
+    if status and status.strip() != "" and status.lower() != "todos":
+        query = query.filter(func.lower(Pedido.status) == status.strip().lower())
+    
+    pedidos = query.order_by(Pedido.data_criacao.desc()).all()
+    
+    resultado = []
+    for p in pedidos:
+        itens_lista = []
+        for item in getattr(p, 'itens', []):
+            cat_nome = "Mercearia / Geral"
+            if item.produto and getattr(item.produto, 'categoria', None):
+                cat_nome = item.produto.categoria.nome
+
+            itens_lista.append({
+                "id": item.id,
+                "produto_id": item.produto_id,
+                "nome": item.produto.nome if item.produto else "Produto",
+                "quantidade": item.quantidade,
+                "preco_unitario": float(item.preco_unitario if item.preco_unitario is not None else 0.0),
+                "observacao_corte": getattr(item, 'observacao_corte', None),
+                "imagem_url": getattr(item.produto, 'imagem_url', None) if item.produto else None,
+                "categoria_nome": cat_nome,
+                "categoria": cat_nome
+            })
+
+        cliente_info = None
+        if p.cliente:
+            cliente_info = {
+                "id": p.cliente.id,
+                "nome": p.cliente.nome,
+                "email": p.cliente.email,
+                "telefone": getattr(p.cliente, 'telefone', None),
+                "endereco": obter_endereco_formatado_cliente(p.cliente)
+            }
+
+        end_entrega = getattr(p, 'endereco_entrega', None)
+        if not end_entrega or end_entrega == "Endereço não informado":
+            end_entrega = obter_endereco_formatado_cliente(p.cliente) or "Endereço não informado"
+
+        resultado.append({
+            "id": p.id,
+            "cliente_id": p.cliente_id,
+            "cliente": cliente_info,
+            "cliente_nome": p.cliente.nome if p.cliente else "Cliente Balcão",
+            "eh_membro_clube": getattr(p, 'eh_membro_clube', False),
+            "subtotal": float(p.subtotal if p.subtotal is not None else 0.0),
+            "taxa_entrega": float(p.taxa_entrega if p.taxa_entrega is not None else 0.0),
+            "total": float(p.total if p.total is not None else 0.0),
+            "valor_total": float(p.total if p.total is not None else 0.0),
+            "status": p.status,
+            "forma_pagamento": getattr(p, 'forma_pagamento', None) or "Dinheiro na Entrega",
+            "troco_para": float(getattr(p, 'troco_para', 0.0) or 0.0),
+            "esta_pago": bool(getattr(p, 'esta_pago', False)),
+            "separado_por": getattr(p, 'separado_por', None) or "Aguardando separação",
+            "separador_id": getattr(p, 'separador_id', None),
+            "entregador_id": getattr(p, 'entregador_id', None),
+            "entregador_nome": getattr(p, 'entregador_nome', None) or "Pendente de atribuição",
+            "endereco_entrega": end_entrega,
+            "data_criacao": p.data_criacao.isoformat() if getattr(p, 'data_criacao', None) else None,
+            "data_separado": getattr(p, 'data_separado', None).isoformat() if getattr(p, 'data_separado', None) else None,
+            "data_inicio_separacao": getattr(p, 'data_inicio_separacao', None).isoformat() if getattr(p, 'data_inicio_separacao', None) else None,
+            "data_saiu_entrega": getattr(p, 'data_saiu_entrega', None).isoformat() if getattr(p, 'data_saiu_entrega', None) else None,
+            "data_concluido": getattr(p, 'data_concluido', None).isoformat() if getattr(p, 'data_concluido', None) else None,
+            "itens": itens_lista
+        })
+        
+    return resultado
+
 @app.put("/pedidos/{pedido_id}/status")
 @app.put("/pedidos/{pedido_id}/status/")
 @app.patch("/pedidos/{pedido_id}/status")
