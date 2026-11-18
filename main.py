@@ -632,7 +632,7 @@ class FooterConfig(BaseModel):
     privacidade_url: Optional[str] = "https://boxsmart.com.br/privacidade"
 
 CONFIG_APP_CACHE = {
-    "logo_url": "https://i.imgur.com/UPl441e.png",
+    "logo_url": "https://i.imgur.com/6tJyuYb.png",
     "footer": {
         "slogan": "Descubra o frescor de cada dia",
         "texto_copyright": "© 2026 MGBE Tecnologia e sistemas. Todos os direitos reservados.",
