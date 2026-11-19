@@ -2044,9 +2044,9 @@ def calcular_previsao_entrega(tipo_entrega: str = "delivery") -> dict:
                 mensagem = f"Compras após às 13:00 são entregues no próximo dia útil: amanhã ({nome_dia}, {data_fmt}) das 08:00 às 13:00."
         else:
             if eh_retirada:
-                mensagem = f"Não realizamos separação aos domingos e feriados. Seu pedido ficará pronto na próxima {nome_dia} ({data_fmt}) das 08:00 às 13:00."
+                mensagem = f"Não realizamos separação aos domingos e feriados. Seu pedido ficará pronto na(o) próxima(o) {nome_dia} ({data_fmt}) das 08:00 às 13:00."
             else:
-                mensagem = f"Não realizamos delivery aos domingos e feriados. Seu pedido será entregue na próxima {nome_dia} ({data_fmt}) das 08:00 às 13:00."
+                mensagem = f"Não realizamos delivery aos domingos e feriados. Seu pedido será entregue na(o) próxima(o) {nome_dia} ({data_fmt}) das 08:00 às 13:00."
 
     return {
         "entrega_hoje": dentro_do_horario,
