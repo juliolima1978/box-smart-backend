@@ -2734,15 +2734,92 @@ def deletar_notificacao(notificacao_id: int, db: Session = Depends(get_db)):
 
 @app.post("/admin/notificacoes/campanha", status_code=201)
 @app.post("/admin/notificacoes/campanha/", status_code=201)
+def _enviar_push_fcm(tokens: list[str], titulo: str, corpo: str, dados_extra: dict = None) -> dict:
+    """Envia push em alta prioridade via FCM (acorda o celular mesmo com o app fechado)."""
+    if not firebase_admin._apps:
+        print("[FCM] Firebase Admin não inicializado. Apenas salvo no banco.")
+        return {"enviados": 0, "falhas": 0}
+
+    tokens_validos = list({t.strip() for t in tokens if t and isinstance(t, str) and t.strip()})
+    if not tokens_validos:
+        return {"enviados": 0, "falhas": 0}
+
+    total_enviados = 0
+    total_falhas = 0
+
+    for i in range(0, len(tokens_validos), 500):
+        lote = tokens_validos[i:i + 500]
+        msg = messaging.MulticastMessage(
+            tokens=lote,
+            notification=messaging.Notification(
+                title=titulo,
+                body=corpo,
+            ),
+            data={k: str(v) for k, v in (dados_extra or {"tipo": "campanha"}).items()},
+            android=messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    channel_id="box_smart_campanhas",
+                    sound="default",
+                    priority="max",
+                    default_sound=True,
+                ),
+            ),
+            apns=messaging.APNSConfig(
+                headers={"apns-priority": "10"},
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(sound="default", content_available=True)
+                ),
+            ),
+        )
+        try:
+            resp = messaging.send_each_for_multicast(msg)
+            total_enviados += resp.success_count
+            total_falhas += resp.failure_count
+        except Exception as e:
+            print(f"[FCM] Erro ao disparar lote: {e}")
+            total_falhas += len(lote)
+
+    return {"enviados": total_enviados, "falhas": total_falhas}
+
+
+@app.post("/admin/notificacoes/campanha", status_code=201)
+@app.post("/admin/notificacoes/campanha/", status_code=201)
 def disparar_campanha_marketing(titulo: str, mensagem: str, db: Session = Depends(get_db)):
-    nova_notificacao = models.Notificacao(titulo=titulo, mensagem=mensagem, cliente_id=None, data_envio=agora_brasilia())
+    nova_notificacao = models.Notificacao(
+        titulo=titulo,
+        mensagem=mensagem,
+        cliente_id=None,
+        data_envio=agora_brasilia()
+    )
     db.add(nova_notificacao)
     db.commit()
     db.refresh(nova_notificacao)
+
+    # Busca todos os tokens FCM válidos cadastrados nos clientes
+    clientes_com_token = db.query(models.Cliente.fcm_token).filter(
+        models.Cliente.fcm_token.isnot(None),
+        models.Cliente.fcm_token != ""
+    ).all()
+    lista_tokens = [c[0] for c in clientes_com_token]
+
+    resultado_push = _enviar_push_fcm(
+        tokens=lista_tokens,
+        titulo=titulo,
+        corpo=mensagem,
+        dados_extra={"tipo": "campanha", "notificacao_id": str(nova_notificacao.id)}
+    )
+
     return {
-        "mensagem": "Campanha de marketing disparada com sucesso para o Clube Box Smart!",
-        "campanha": {"titulo": titulo, "detalhes": mensagem, "data": nova_notificacao.data_envio}
+        "mensagem": f"Campanha disparada! Push enviado para {resultado_push['enviados']} aparelho(s).",
+        "push": resultado_push,
+        "campanha": {
+            "titulo": titulo,
+            "detalhes": mensagem,
+            "data": nova_notificacao.data_envio
+        }
     }
+
 
 @app.post("/admin/notificacoes", response_model=schemas.NotificacaoOut, status_code=201)
 @app.post("/admin/notificacoes/", response_model=schemas.NotificacaoOut, status_code=201)
@@ -2758,6 +2835,25 @@ def disparar_notificacao(notificacao: schemas.NotificacaoCreate, db: Session = D
     db.add(nova_notificacao)
     db.commit()
     db.refresh(nova_notificacao)
+
+    # Se for individual, envia apenas para o cliente; se cliente_id for None, envia para todos
+    if notificacao.cliente_id:
+        cliente = db.query(models.Cliente).filter(models.Cliente.id == notificacao.cliente_id).first()
+        tokens = [cliente.fcm_token] if cliente and getattr(cliente, 'fcm_token', None) else []
+    else:
+        rows = db.query(models.Cliente.fcm_token).filter(
+            models.Cliente.fcm_token.isnot(None),
+            models.Cliente.fcm_token != ""
+        ).all()
+        tokens = [r[0] for r in rows]
+
+    _enviar_push_fcm(
+        tokens=tokens,
+        titulo=notificacao.titulo,
+        corpo=notificacao.mensagem,
+        dados_extra={"tipo": notificacao.tipo or "geral", "notificacao_id": str(nova_notificacao.id)}
+    )
+
     return nova_notificacao
 
 @app.get("/clientes/{cliente_id}/notificacoes")
